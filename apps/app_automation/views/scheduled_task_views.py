@@ -19,6 +19,8 @@ from ..serializers import (
     AppScheduledTaskSerializer,
     AppNotificationLogSerializer,
 )
+from ..utils.execution_precheck import build_precheck_error_message, run_execution_precheck
+from ..utils.task_dispatcher import dispatch_app_task
 
 logger = logging.getLogger(__name__)
 
@@ -65,13 +67,46 @@ class AppScheduledTaskViewSet(viewsets.ModelViewSet):
                 return Response({'success': False, 'message': '设备已被其他用户锁定'},
                                 status=status.HTTP_400_BAD_REQUEST)
 
+            package_name = task.app_package.package_name if task.app_package else ''
+            if not package_name and task.test_case:
+                package_name = (
+                    task.test_case.app_package.package_name if task.test_case.app_package else ''
+                ) or (
+                    task.test_case.project.android_app_package.package_name
+                    if task.test_case.project and task.test_case.project.android_app_package else ''
+                )
+            if not package_name and task.test_suite:
+                package_name = (
+                    task.test_suite.project.android_app_package.package_name
+                    if task.test_suite.project and task.test_suite.project.android_app_package else ''
+                )
+                if not package_name:
+                    first_suite_case = task.test_suite.suite_cases.select_related(
+                        'test_case',
+                        'test_case__app_package',
+                        'test_case__project__android_app_package',
+                    ).first()
+                    if first_suite_case and first_suite_case.test_case:
+                        first_case = first_suite_case.test_case
+                        package_name = (
+                            first_case.app_package.package_name if first_case.app_package else ''
+                        ) or (
+                            first_case.project.android_app_package.package_name
+                            if first_case.project and first_case.project.android_app_package else ''
+                        )
+            precheck = run_execution_precheck(device, package_name=package_name)
+            if not precheck.get('can_submit'):
+                return Response({
+                    'success': False,
+                    'message': build_precheck_error_message(precheck),
+                    'precheck': precheck,
+                }, status=status.HTTP_400_BAD_REQUEST)
+
             # 更新统计
             task.last_run_time = timezone.now()
             task.total_runs += 1
             task.next_run_time = task.calculate_next_run()
             task.save()
-
-            package_name = task.app_package.package_name if task.app_package else ''
 
             if task.task_type == 'TEST_SUITE':
                 if not task.test_suite:
@@ -101,16 +136,23 @@ class AppScheduledTaskViewSet(viewsets.ModelViewSet):
                 task.test_suite.execution_status = 'running'
                 task.test_suite.save(update_fields=['execution_status'])
 
-                celery_task = execute_app_suite_task.delay(
+                execution_ids = [e.id for e in executions]
+                celery_task = dispatch_app_task(
+                    execute_app_suite_task,
                     suite_id=task.test_suite.id,
-                    execution_ids=[e.id for e in executions],
+                    execution_ids=execution_ids,
                     package_name=package_name,
                     scheduled_task_id=task.id,
+                    mark_execution_ids=execution_ids,
                 )
 
                 return Response({
                     'success': True,
-                    'message': f'测试套件开始执行，共 {len(executions)} 个用例',
+                    'message': (
+                        f'测试套件开始执行，共 {len(executions)} 个用例'
+                        if not celery_task.fallback_used
+                        else f'队列不可用，已切换本机执行，共 {len(executions)} 个用例'
+                    ),
                     'data': {'task_id': celery_task.id, 'test_case_count': len(executions)}
                 })
 
@@ -128,17 +170,19 @@ class AppScheduledTaskViewSet(viewsets.ModelViewSet):
                     user=request.user,
                     status='pending'
                 )
-                celery_task = execute_app_test_task.delay(
+                celery_task = dispatch_app_task(
+                    execute_app_test_task,
                     execution.id,
                     package_name=package_name,
                     scheduled_task_id=task.id,
+                    mark_execution_ids=[execution.id],
                 )
                 execution.task_id = celery_task.id
                 execution.save(update_fields=['task_id'])
 
                 return Response({
                     'success': True,
-                    'message': '测试用例开始执行',
+                    'message': '测试用例开始执行' if not celery_task.fallback_used else '队列不可用，已切换本机执行',
                     'data': {'task_id': celery_task.id}
                 })
 

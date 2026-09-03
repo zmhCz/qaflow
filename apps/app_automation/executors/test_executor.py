@@ -7,6 +7,7 @@ import sys
 import subprocess
 import glob
 import json
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -45,6 +46,7 @@ class AppTestExecutor:
         package_name: str,
         execution_id: Optional[int] = None,
         username: Optional[str] = None,
+        generate_allure_report: bool = True,
     ) -> Dict[str, Any]:
         """
         运行APP测试用例并生成报告
@@ -55,6 +57,7 @@ class AppTestExecutor:
             package_name: 应用包名
             execution_id: 执行记录ID
             username: 执行用户名，用于日志目录分组
+            generate_allure_report: 是否生成 Allure 静态报告；套件批量执行可关闭以减少重复耗时
             
         Returns:
             执行结果字典
@@ -87,6 +90,8 @@ class AppTestExecutor:
             # Allure 结果目录
             allure_results_dir = self._get_allure_results_dir(execution_id)
             os.makedirs(allure_results_dir, exist_ok=True)
+            env['APP_LOGCAT_CAPTURE'] = '1'
+            env['APP_ALLURE_RESULTS_DIR'] = allure_results_dir
             
             # 构建 pytest 参数
             pytest_args = [
@@ -96,6 +101,8 @@ class AppTestExecutor:
                 '--alluredir', allure_results_dir,
                 '--tb=short',
             ]
+            # Keep business executions isolated from the platform's unit tests.
+            pytest_args[3] = 'apps/app_automation/tests/test_app_flow.py::TestAppFlow::test_execute_ui_flow'
             
             logger.info(f"执行命令: {' '.join(pytest_args)}")
             logger.info(f"工作目录: {os.getcwd()}")
@@ -132,6 +139,7 @@ class AppTestExecutor:
                 log_file.write(f"{'='*80}\n")
                 
                 if process.stdout:
+                    last_stop_check = 0.0
                     for line in process.stdout:
                         line = line.rstrip()
                         if line:
@@ -139,6 +147,14 @@ class AppTestExecutor:
                             log_file.write(line + '\n')
                             if any(pattern in line for pattern in important_patterns):
                                 logger.info(f"[pytest] {line}")
+                        if execution_id:
+                            now = time.monotonic()
+                            if now - last_stop_check >= 1:
+                                last_stop_check = now
+                                if self._is_execution_stopped(execution_id):
+                                    logger.info("检测到执行记录已停止，终止 pytest 子进程: execution_id=%s", execution_id)
+                                    process.terminate()
+                                    break
                 
                 log_file.write(f"\n[执行完毕]\n")
             finally:
@@ -155,8 +171,10 @@ class AppTestExecutor:
             # 解析测试结果
             test_results = self._parse_allure_results(allure_results_dir)
             
-            # 生成 Allure 报告
-            report_path = self._generate_allure_report(execution_id)
+            # 生成 Allure 报告。原始 allure-results 始终保留，标准报告仍可读取步骤和附件。
+            report_path = self._generate_allure_report(execution_id) if generate_allure_report else None
+            if not generate_allure_report:
+                logger.info("已跳过 Allure 静态报告生成: execution_id=%s", execution_id)
             
             return {
                 'success': exit_code == 0,
@@ -174,6 +192,19 @@ class AppTestExecutor:
             }
         finally:
             os.chdir(original_cwd)
+
+    def _is_execution_stopped(self, execution_id: int) -> bool:
+        """检查数据库停止标记，让套件停止能中断本地 pytest 子进程。"""
+        try:
+            from apps.app_automation.models import AppTestExecution
+
+            return AppTestExecution.objects.filter(
+                id=execution_id,
+                status='stopped',
+            ).exists()
+        except Exception as exc:
+            logger.debug("检查执行停止状态失败: %s", exc)
+            return False
     
     def _get_log_file_path(self, username: str) -> str:
         """生成日志文件路径: logs/app_automation/{username}/{日期}.log"""

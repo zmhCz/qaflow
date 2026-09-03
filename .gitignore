@@ -1,13 +1,42 @@
 # 忽略虚拟环境及项目产生的临时文件
 .venv/
+venv/
 .idea/
 .claude/
 .vscode/
 .trae/
 __pycache__/
+*.py[cod]
 .DS_Store
 .pytest_cache
 备注笔记.txt
+
+# 本地过程文档与阶段性评测材料，作品仓库只保留脱敏后的正式文档
+/AI探索*.md
+/M1_*.md
+/QAFlow*.md
+/部署指南.md
+/技术总结.md
+/交付完成_摘要报告.md
+/可视化元素管理_完整交付文档.md
+/快速开始指南.md
+/平台*.md
+/需求驱动自动化用例生成模块设计思路.md
+/自动化中心*.md
+docs/**/*暂停归档*.md
+docs/**/*接入分析*.md
+
+# 本地调试与运行产物
+*.log
+*.err
+tmp_*
+.codex-*
+django-runserver*.log
+django-runserver*.err.log
+frontend-vite*.log
+frontend-vite*.err.log
+tmp_allure_step_evidence_*/
+
 # 忽略log文件，但保留.gitkeep和子目录
 logs/*
 !logs/.gitkeep
@@ -16,13 +45,14 @@ logs/*/*
 !logs/*/.gitkeep
 # 忽略.env配置文件(但保留.env.example示例文件)
 .env
-.sql
-static_files/img/
+.env.*
+!.env.example
+*.sql
+static_files/
 .bak
-# 忽略所有 app/*/migrations/ 目录下的所有内容 (包括文件和子目录)
-apps/*/migrations/*
-# 使用否定模式，例外地跟踪 __init__.py 文件
-!apps/*/migrations/__init__.py
+
+# Django 迁移文件必须入仓，否则新环境无法可靠部署
+apps/*/migrations/__pycache__/
 
 # 忽略 allure-static 下的所有文件（运行时生成）
 media/allure-static/*
@@ -55,6 +85,8 @@ media/app-automation/allure-reports/*
 !media/app-automation/allure-reports/.gitkeep
 media/app-automation/screenshots/*
 !media/app-automation/screenshots/.gitkeep
+media/app-automation/explorations/*
+!media/app-automation/explorations/.gitkeep
 
 # 忽略APP自动化模板文件
 apps/app_automation/Template/**
@@ -65,6 +97,9 @@ frontend/node_modules/
 frontend/.DS_Store
 frontend/*.log
 frontend/dist/
+
+# Local runtime artifacts
+.runtime/
 
 # Docker
 Dockerfile*

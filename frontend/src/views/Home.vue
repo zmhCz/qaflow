@@ -2,22 +2,27 @@
   <div class="home-container">
     <div class="content-wrapper">
       <div class="header-actions">
-        <!-- PC：语言、用户分开 -->
         <div class="header-actions-pc">
-          <el-dropdown @command="handleLanguageChange" class="language-dropdown">
+          <el-dropdown
+            class="language-dropdown"
+            @command="handleLanguageChange"
+          >
             <span class="el-dropdown-link">
-              <span class="language-icon">{{ currentLanguage === 'zh-cn' ? '🇨🇳' : '🇺🇸' }}</span>
-              <span class="language-text">{{ $t('home.language.current') }}</span>
-              <el-icon class="el-icon--right"><arrow-down /></el-icon>
+              <span class="language-text">{{ currentLanguage }}</span>
+              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="zh-cn" :disabled="currentLanguage === 'zh-cn'">
-                  <span class="dropdown-flag">🇨🇳</span> {{ $t('home.language.zhCN') }}
-                </el-dropdown-item>
-                <el-dropdown-item command="en" :disabled="currentLanguage === 'en'">
-                  <span class="dropdown-flag">🇺🇸</span> {{ $t('home.language.en') }}
-                </el-dropdown-item>
+                <el-dropdown-item
+                  command="zh-cn"
+                  :disabled="currentLanguageCode === 'zh-cn'"
+                  >简体中文</el-dropdown-item
+                >
+                <el-dropdown-item
+                  command="en"
+                  :disabled="currentLanguageCode === 'en'"
+                  >English</el-dropdown-item
+                >
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -25,116 +30,68 @@
           <el-dropdown @command="handleCommand">
             <span class="el-dropdown-link">
               <el-avatar :size="32" :icon="UserFilled" />
-              <span class="username">{{ userStore.user?.username || $t('home.user') }}</span>
-              <el-icon class="el-icon--right"><arrow-down /></el-icon>
+              <span class="username">{{
+                userStore.user?.username || $t("home.user")
+              }}</span>
+              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout">{{ $t('home.logout') }}</el-dropdown-item>
+                <el-dropdown-item command="logout">{{
+                  $t("home.logout")
+                }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
         </div>
 
-        <!-- 移动端：合并菜单 -->
         <div class="header-actions-mobile">
           <el-dropdown trigger="click" @command="handleHeaderCommand">
             <span class="user-menu-trigger">
               <span class="avatar-wrap">
                 <el-avatar :size="28" :icon="UserFilled" />
-                <span class="lang-badge">{{ currentLanguage === 'zh-cn' ? '🇨🇳' : '🇺🇸' }}</span>
               </span>
               <el-icon class="trigger-arrow"><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="zh-cn" :disabled="currentLanguage === 'zh-cn'">
-                  <span class="dropdown-flag">🇨🇳</span> {{ $t('home.language.zhCN') }}
-                </el-dropdown-item>
-                <el-dropdown-item command="en" :disabled="currentLanguage === 'en'">
-                  <span class="dropdown-flag">🇺🇸</span> {{ $t('home.language.en') }}
-                </el-dropdown-item>
-                <el-dropdown-item command="logout" divided>
-                  {{ $t('home.logout') }}
-                </el-dropdown-item>
+                <el-dropdown-item
+                  command="zh-cn"
+                  :disabled="currentLanguageCode === 'zh-cn'"
+                  >简体中文</el-dropdown-item
+                >
+                <el-dropdown-item
+                  command="en"
+                  :disabled="currentLanguageCode === 'en'"
+                  >English</el-dropdown-item
+                >
+                <el-dropdown-item command="logout" divided>{{
+                  $t("home.logout")
+                }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
         </div>
       </div>
 
-      <h1 class="main-title">{{ $t('home.title') }}</h1>
-      <p class="subtitle">{{ $t('home.subtitle') }}</p>
+      <h1 class="main-title">{{ $t("home.title") }}</h1>
+      <p class="subtitle">{{ $t("home.subtitle") }}</p>
 
       <div class="cards-container">
-        <!-- AI用例生成 -->
-        <div class="nav-card" @click="handleNavigate('ai')" role="button" tabindex="0">
-          <div class="card-icon ai-icon">
-            <el-icon><MagicStick /></el-icon>
+        <div
+          v-for="card in homeCards"
+          :key="card.key"
+          class="nav-card"
+          :class="{ 'nav-card-platform': card.key === 'platform' }"
+          role="button"
+          tabindex="0"
+          @click="handleNavigate(card)"
+        >
+          <div class="card-icon" :class="card.themeClass">
+            <el-icon><component :is="resolveIcon(card.icon)" /></el-icon>
           </div>
-          <h3>{{ $t('home.aiCaseGeneration') }}</h3>
-          <p>{{ $t('home.aiCaseGenerationDesc') }}</p>
-        </div>
-
-        <!-- 接口测试 -->
-        <div class="nav-card" @click="handleNavigate('api')" role="button" tabindex="0">
-          <div class="card-icon api-icon">
-            <el-icon><Link /></el-icon>
-          </div>
-          <h3>{{ $t('home.apiTesting') }}</h3>
-          <p>{{ $t('home.apiTestingDesc') }}</p>
-        </div>
-
-        <!-- UI自动化测试 -->
-        <div class="nav-card" @click="handleNavigate('ui')" role="button" tabindex="0">
-          <div class="card-icon ui-icon">
-            <el-icon><Monitor /></el-icon>
-          </div>
-          <h3>{{ $t('home.uiAutomation') }}</h3>
-          <p>{{ $t('home.uiAutomationDesc') }}</p>
-        </div>
-
-        <!-- 数据工厂 -->
-        <div class="nav-card" @click="handleNavigate('data')" role="button" tabindex="0">
-          <div class="card-icon data-icon">
-            <el-icon><DataLine /></el-icon>
-          </div>
-          <h3>{{ $t('home.dataFactory') }}</h3>
-          <p>{{ $t('home.dataFactoryDesc') }}</p>
-        </div>
-
-        <!-- APP自动化测试 -->
-        <div class="nav-card" @click="handleNavigate('app')" role="button" tabindex="0">
-          <div class="card-icon app-icon">
-            <el-icon><Cellphone /></el-icon>
-          </div>
-          <h3>APP自动化测试</h3>
-          <p>基于Airtest的Android APP自动化测试</p>
-        </div>
-
-        <!-- AI 智能模式 -->
-        <div class="nav-card" @click="handleNavigate('ai-intelligent')" role="button" tabindex="0">
-          <div class="card-icon ai-intelligent-icon">
-            <el-icon><Cpu /></el-icon>
-          </div>
-          <h3>{{ $t('home.aiIntelligentMode') }}</h3>
-          <p>{{ $t('home.aiIntelligentModeDesc') }}</p>
-        </div>
-        <!-- AI评测师 -->
-        <div class="nav-card" @click="handleNavigate('assistant')" role="button" tabindex="0">
-          <div class="card-icon assistant-icon">
-            <el-icon><ChatDotRound /></el-icon>
-          </div>
-          <h3>{{ $t('home.aiEvaluator') }}</h3>
-          <p>{{ $t('home.aiEvaluatorDesc') }}</p>
-        </div>
-        <!-- 配置中心 -->
-        <div class="nav-card" @click="handleNavigate('config')" role="button" tabindex="0">
-          <div class="card-icon config-icon">
-            <el-icon><Setting /></el-icon>
-          </div>
-          <h3>{{ $t('home.configCenter') }}</h3>
-          <p>{{ $t('home.configCenterDesc') }}</p>
+          <h3>{{ card.title }}</h3>
+          <p>{{ card.description }}</p>
         </div>
       </div>
     </div>
@@ -152,11 +109,15 @@
         <div class="dialog-icon-wrap">
           <el-icon><Monitor /></el-icon>
         </div>
-        <p class="dialog-desc">{{ $t('home.mobileTipDesc') }}</p>
+        <p class="dialog-desc">{{ $t("home.mobileTipDesc") }}</p>
       </div>
       <template #footer>
-        <el-button type="primary" class="dialog-confirm-btn" @click="mobileDialogVisible = false">
-          {{ $t('home.mobileTipOk') }}
+        <el-button
+          type="primary"
+          class="dialog-confirm-btn"
+          @click="mobileDialogVisible = false"
+        >
+          {{ $t("home.mobileTipOk") }}
         </el-button>
       </template>
     </el-dialog>
@@ -164,121 +125,158 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { useUserStore } from '@/stores/user'
-import { useAppStore } from '@/stores/app'
-import { track } from '@/utils/tracker'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { MagicStick, Link, Monitor, DataLine, Cpu, Setting, ChatDotRound, UserFilled, ArrowDown, Cellphone } from '@element-plus/icons-vue'
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
+import { useUserStore } from "@/stores/user";
+import { useAppStore } from "@/stores/app";
+import { track } from "@/utils/tracker";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { platformHomeCards } from "@/config/platformModules";
+import {
+  MagicStick,
+  Link,
+  Monitor,
+  DataLine,
+  Cpu,
+  Setting,
+  ChatDotRound,
+  UserFilled,
+  ArrowDown,
+  Cellphone,
+  Grid,
+} from "@element-plus/icons-vue";
 
-const router = useRouter()
-const { t } = useI18n()
-const userStore = useUserStore()
-const appStore = useAppStore()
+const router = useRouter();
+const { t } = useI18n();
+const userStore = useUserStore();
+const appStore = useAppStore();
 
-// 当前语言
-const currentLanguage = computed(() => appStore.language)
-const isMobile = ref(false)
-const mobileTipDismissed = ref(false)
-const MOBILE_BREAKPOINT = 768
-const MOBILE_TIP_STORAGE_KEY = 'testhub_home_mobile_tip_seen'
+const iconMap = {
+  MagicStick,
+  Link,
+  Monitor,
+  DataLine,
+  Cpu,
+  Setting,
+  ChatDotRound,
+  Cellphone,
+  Grid,
+};
+
+const currentLanguageCode = computed(() => appStore.language);
+const currentLanguage = computed(() =>
+  appStore.language === "zh-cn" ? "简体中文" : "English",
+);
+const isMobile = ref(false);
+const mobileTipDismissed = ref(false);
+const MOBILE_BREAKPOINT = 768;
+const MOBILE_TIP_STORAGE_KEY = "testhub_home_mobile_tip_seen";
+
+const homeCards = computed(() => {
+  return platformHomeCards.map((card) => ({
+    ...card,
+    title: card.titleKey ? t(card.titleKey) : card.title,
+    description: card.descriptionKey
+      ? t(card.descriptionKey)
+      : card.description,
+  }));
+});
+
+const resolveIcon = (iconName) => {
+  return iconMap[iconName] || Grid;
+};
 
 const dismissMobileTip = () => {
-  mobileTipDismissed.value = true
+  mobileTipDismissed.value = true;
   try {
-    localStorage.setItem(MOBILE_TIP_STORAGE_KEY, '1')
+    localStorage.setItem(MOBILE_TIP_STORAGE_KEY, "1");
   } catch {
     // ignore quota / private mode
   }
-}
+};
 
 const mobileDialogVisible = computed({
   get: () => isMobile.value && !mobileTipDismissed.value,
-  set: (val) => {
-    if (!val) dismissMobileTip()
-  }
-})
+  set: (value) => {
+    if (!value) {
+      dismissMobileTip();
+    }
+  },
+});
 
 const updateMobileTip = () => {
-  isMobile.value = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches
-}
+  isMobile.value = window.matchMedia(
+    `(max-width: ${MOBILE_BREAKPOINT}px)`,
+  ).matches;
+};
 
 onMounted(() => {
   try {
-    if (localStorage.getItem(MOBILE_TIP_STORAGE_KEY) === '1') {
-      mobileTipDismissed.value = true
+    if (localStorage.getItem(MOBILE_TIP_STORAGE_KEY) === "1") {
+      mobileTipDismissed.value = true;
     }
   } catch {
     // ignore
   }
-  updateMobileTip()
-  window.addEventListener('resize', updateMobileTip)
-})
+
+  updateMobileTip();
+  window.addEventListener("resize", updateMobileTip);
+});
 
 onUnmounted(() => {
-  window.removeEventListener('resize', updateMobileTip)
-})
+  window.removeEventListener("resize", updateMobileTip);
+});
 
 const handleLanguageChange = (lang) => {
-  appStore.setLanguage(lang)
-}
+  appStore.setLanguage(lang);
+};
 
 const handleCommand = (command) => {
-  if (command === 'logout') {
-    handleLogout()
+  if (command === "logout") {
+    handleLogout();
   }
-}
+};
 
 const handleHeaderCommand = (command) => {
-  if (command === 'logout') {
-    handleLogout()
-    return
+  if (command === "logout") {
+    handleLogout();
+    return;
   }
-  if (command === 'zh-cn' || command === 'en') {
-    appStore.setLanguage(command)
+
+  if (command === "zh-cn" || command === "en") {
+    appStore.setLanguage(command);
   }
-}
+};
 
 const handleLogout = () => {
-  ElMessageBox.confirm(t('home.logoutConfirm'), t('common.tips'), {
-    confirmButtonText: t('common.confirm'),
-    cancelButtonText: t('common.cancel'),
-    type: 'warning'
-  }).then(() => {
-    userStore.logout()
-    router.push('/login')
-    ElMessage.success(t('home.logoutSuccess'))
-  }).catch(() => {})
-}
-
-const handleNavigate = (type) => {
-  const routes = {
-    'ai': '/ai-generation/requirement-analysis',
-    'api': '/api-testing/dashboard',
-    'ui': '/ui-automation/dashboard',
-    'app': '/app-automation/dashboard',
-    'ai-intelligent': '/ai-intelligent-mode/testing',
-    'assistant': '/ai-generation/assistant',
-    'config': '/configuration/ai-model',
-    'data': '/data-factory'
-  }
-
-  if (routes[type]) {
-    track('module_card_click', {
-      event_type: 'click',
-      module: 'home',
-      page_path: '/home',
-      target_path: routes[type],
-      metadata: {
-        card_type: type
-      }
+  ElMessageBox.confirm(t("home.logoutConfirm"), t("common.tips"), {
+    confirmButtonText: t("common.confirm"),
+    cancelButtonText: t("common.cancel"),
+    type: "warning",
+  })
+    .then(() => {
+      userStore.logout();
+      router.push("/login");
+      ElMessage.success(t("home.logoutSuccess"));
     })
-    const routeData = router.resolve({ path: routes[type] })
-    window.open(routeData.href, '_blank')
-  }
-}
+    .catch(() => {});
+};
+
+const handleNavigate = (card) => {
+  track("module_card_click", {
+    event_type: "click",
+    module: "home",
+    page_path: "/home",
+    target_path: card.route,
+    metadata: {
+      card_type: card.type,
+      module_key: card.key,
+    },
+  });
+
+  router.push(card.route);
+};
 </script>
 
 <style scoped lang="scss">
@@ -296,6 +294,16 @@ const handleNavigate = (type) => {
   max-width: 1200px;
   width: 100%;
   position: relative;
+}
+
+.nav-card-platform {
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(24, 144, 255, 0.18),
+      transparent 35%
+    ),
+    rgba(255, 255, 255, 0.94);
 }
 
 .header-actions {
@@ -323,12 +331,6 @@ const handleNavigate = (type) => {
         outline: none;
       }
 
-      .language-icon {
-        font-size: 18px;
-        margin-right: 5px;
-        line-height: 1;
-      }
-
       .language-text {
         margin: 0 5px;
         font-size: 14px;
@@ -354,7 +356,6 @@ const handleNavigate = (type) => {
 
     .username {
       margin: 0 8px;
-      font-size: 14px;
     }
 
     &:hover {
@@ -367,260 +368,119 @@ const handleNavigate = (type) => {
   display: none;
 }
 
-.user-menu-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  color: #5e6d82;
-  padding: 6px 10px 6px 6px;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 2px 8px rgba(31, 45, 61, 0.06);
-  transition: color 0.3s, background 0.3s;
-  outline: none;
-
-  &:focus {
-    outline: none;
-  }
-
-  &:hover {
-    color: #409eff;
-    background: rgba(255, 255, 255, 0.85);
-  }
-
-  .avatar-wrap {
-    position: relative;
-    display: inline-flex;
-    flex-shrink: 0;
-  }
-
-  .lang-badge {
-    position: absolute;
-    right: -5px;
-    bottom: -3px;
-    font-size: 11px;
-    line-height: 1;
-    background: #fff;
-    border-radius: 50%;
-    padding: 1px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-  }
-
-  .trigger-arrow {
-    font-size: 12px;
-    color: #909399;
-  }
-}
-
-.dropdown-flag {
-  font-size: 16px;
-  margin-right: 5px;
-}
-
 .main-title {
-  font-size: 3.5rem;
+  font-size: 3rem;
+  font-weight: 700;
   color: #2c3e50;
   margin-bottom: 1rem;
-  font-weight: 700;
-  letter-spacing: 2px;
+  line-height: 1.2;
 }
 
 .subtitle {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   color: #5e6d82;
   margin-bottom: 4rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.6;
 }
 
 .cards-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
   padding: 20px;
 }
 
 .nav-card {
   background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  padding: 40px 20px;
+  border-radius: 20px;
+  padding: 30px 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  text-align: center;
 
   &:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 20px 30px rgba(0, 0, 0, 0.1);
-    background: #fff;
+    transform: translateY(-8px);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
   }
 
   h3 {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
+    font-weight: 600;
     color: #2c3e50;
-    margin: 20px 0 10px;
+    margin: 16px 0 12px;
   }
 
   p {
+    font-size: 0.95rem;
     color: #7f8c8d;
-    line-height: 1.5;
+    line-height: 1.6;
     margin: 0;
   }
 }
 
 .card-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
-  margin-bottom: 10px;
-  transition: all 0.3s ease;
-
-  &.ai-icon {
-    background: #e8f4ff;
-    color: #409eff;
-  }
-
-  &.api-icon {
-    background: #f0f9eb;
-    color: #67c23a;
-  }
-
-  &.ui-icon {
-    background: #fdf6ec;
-    color: #e6a23c;
-  }
-
-  &.data-icon {
-    background: #e8f4ff;
-    color: #409eff;
-  }
-
-  &.app-icon {
-    background: #f9f0ff;
-    color: #722ed1;
-  }
-
-  &.ai-intelligent-icon {
-    background: #f0f5ff;
-    color: #2f54eb;
-  }
-
-  &.config-icon {
-    background: #e6fffb;
-    color: #13c2c2;
-  }
-
-  &.assistant-icon {
-    background: #fff7e6;
-    color: #fa8c16;
-  }
+  margin: 0 auto;
+  font-size: 34px;
+  color: #fff;
 }
 
-.nav-card:hover .card-icon {
-  transform: scale(1.1);
+.platform-icon {
+  background: linear-gradient(135deg, #1890ff 0%, #0050b3 100%);
 }
 
-@media screen and (max-width: 1920px) {
-  .main-title {
-    font-size: 3.2rem;
-  }
-
-  .subtitle {
-    font-size: 1.4rem;
-  }
-
-  .cards-container {
-    gap: 28px;
-    padding: 18px;
-  }
+.ai-icon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-@media screen and (max-width: 1600px) {
-  .main-title {
-    font-size: 3rem;
-  }
-
-  .subtitle {
-    font-size: 1.3rem;
-  }
-
-  .cards-container {
-    gap: 26px;
-    padding: 16px;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  }
-
-  .nav-card {
-    padding: 35px 18px;
-  }
+.api-icon {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
 }
 
-@media screen and (max-width: 1440px) {
-  .main-title {
-    font-size: 2.8rem;
-  }
-
-  .subtitle {
-    font-size: 1.2rem;
-  }
-
-  .cards-container {
-    gap: 24px;
-    padding: 14px;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  }
-
-  .nav-card {
-    padding: 30px 16px;
-
-    h3 {
-      font-size: 1.4rem;
-    }
-  }
-
-  .card-icon {
-    width: 70px;
-    height: 70px;
-    font-size: 35px;
-  }
+.ui-icon {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
 }
 
-@media screen and (max-width: 1366px) {
-  .main-title {
-    font-size: 2.6rem;
-  }
+.data-icon {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
 
-  .subtitle {
-    font-size: 1.1rem;
-  }
+.app-icon {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+}
 
-  .cards-container {
-    gap: 22px;
-    padding: 12px;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  }
+.ai-intelligent-icon {
+  background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+}
 
-  .nav-card {
-    padding: 28px 14px;
+.assistant-icon {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
 
-    h3 {
-      font-size: 1.3rem;
-    }
-  }
+.config-icon {
+  background: linear-gradient(135deg, #96fbc4 0%, #f9f586 100%);
+  color: #2c3e50;
+}
 
-  .card-icon {
-    width: 65px;
-    height: 65px;
-    font-size: 32px;
-  }
+.header-actions-mobile .user-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  cursor: pointer;
 }
 
 @media screen and (max-width: 1280px) {
@@ -684,56 +544,13 @@ const handleNavigate = (type) => {
       font-size: 0.9rem;
     }
   }
-
-  .card-icon {
-    width: 55px;
-    height: 55px;
-    font-size: 28px;
-  }
-
-  .header-actions {
-    padding: 8px;
-  }
 }
 
-/* 移动端：≤768px 专用样式 */
 @media screen and (max-width: 768px) {
   .home-container {
-    position: relative;
-    overflow: hidden;
-    padding: 14px 14px 24px;
-    padding-top: max(14px, env(safe-area-inset-top));
-    background: linear-gradient(165deg, #eef2f7 0%, #e2eaf2 42%, #d5dfea 100%);
-
-    &::before,
-    &::after {
-      content: '';
-      position: absolute;
-      border-radius: 50%;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    &::before {
-      width: 260px;
-      height: 260px;
-      top: -70px;
-      right: -50px;
-      background: radial-gradient(circle, rgba(64, 158, 255, 0.14) 0%, transparent 68%);
-    }
-
-    &::after {
-      width: 220px;
-      height: 220px;
-      bottom: 8%;
-      left: -70px;
-      background: radial-gradient(circle, rgba(99, 126, 234, 0.1) 0%, transparent 70%);
-    }
-  }
-
-  .content-wrapper {
-    position: relative;
-    z-index: 1;
+    align-items: flex-start;
+    padding: 16px;
+    padding-top: max(16px, env(safe-area-inset-top));
   }
 
   .header-actions {
@@ -780,8 +597,6 @@ const handleNavigate = (type) => {
     box-shadow:
       0 4px 14px rgba(31, 45, 61, 0.07),
       0 1px 3px rgba(31, 45, 61, 0.04);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
 
     &:hover {
       transform: none;
@@ -798,14 +613,12 @@ const handleNavigate = (type) => {
     h3 {
       font-size: 15px;
       margin: 12px 0 6px;
-      color: #1f2d3d;
       line-height: 1.35;
     }
 
     p {
       font-size: 12px;
       line-height: 1.45;
-      color: #8a939d;
       display: -webkit-box;
       -webkit-line-clamp: 3;
       -webkit-box-orient: vertical;
@@ -818,11 +631,6 @@ const handleNavigate = (type) => {
     height: 48px;
     font-size: 24px;
     border-radius: 14px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  }
-
-  .nav-card:hover .card-icon {
-    transform: none;
   }
 }
 
@@ -834,11 +642,6 @@ const handleNavigate = (type) => {
 
   .header-actions {
     margin-bottom: 16px;
-  }
-
-  .header-actions-mobile .user-menu-trigger {
-    padding: 5px 8px 5px 5px;
-    gap: 4px;
   }
 
   .main-title {

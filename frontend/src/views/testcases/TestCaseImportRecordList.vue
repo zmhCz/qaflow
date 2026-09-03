@@ -2,14 +2,14 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h1 class="page-title">{{ $t('testcase.importRecordTitle') }}</h1>
+        <h1 class="page-title">{{ $t("testcase.importRecordTitle") }}</h1>
       </div>
       <div class="header-actions">
         <el-button @click="router.push('/ai-generation/testcases')">
-          {{ $t('testcase.backToList') }}
+          {{ $t("testcase.backToList") }}
         </el-button>
         <el-button type="primary" @click="fetchRecords">
-          {{ $t('common.refresh') }}
+          {{ $t("common.refresh") }}
         </el-button>
       </div>
     </div>
@@ -17,45 +17,89 @@
     <div class="card-container">
       <div class="table-container">
         <el-table :data="records" v-loading="loading" style="width: 100%">
-          <el-table-column prop="import_no" :label="$t('testcase.importNo')" min-width="220" />
-          <el-table-column prop="project_name" :label="$t('testcase.importProject')" min-width="160" />
-          <el-table-column prop="status" :label="$t('testcase.importStatus')" width="120">
+          <el-table-column
+            prop="import_no"
+            :label="$t('testcase.importNo')"
+            min-width="220"
+          />
+          <el-table-column
+            prop="project_name"
+            :label="$t('testcase.importProject')"
+            min-width="160"
+          />
+          <el-table-column
+            prop="status"
+            :label="$t('testcase.importStatus')"
+            width="120"
+          >
             <template #default="{ row }">
-              <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
+              <el-tag :type="getStatusType(row.status)">{{
+                getStatusText(row.status)
+              }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="progress" :label="$t('testcase.importProgress')" width="180">
+          <el-table-column
+            prop="progress"
+            :label="$t('testcase.importProgress')"
+            width="180"
+          >
             <template #default="{ row }">
-              <el-progress :percentage="row.progress || 0" :status="row.status === 'failed' ? 'exception' : undefined" />
+              <el-progress
+                :percentage="row.progress || 0"
+                :status="row.status === 'failed' ? 'exception' : undefined"
+              />
             </template>
           </el-table-column>
-          <el-table-column :label="$t('testcase.importSummary')" min-width="180">
+          <el-table-column
+            :label="$t('testcase.importSummary')"
+            min-width="180"
+          >
             <template #default="{ row }">
               {{ row.success_count }}/{{ row.total_rows }}
-              <span v-if="row.failed_count > 0">, {{ $t('testcase.failed') }} {{ row.failed_count }}</span>
+              <span v-if="row.failed_count > 0"
+                >, {{ $t("testcase.failed") }} {{ row.failed_count }}</span
+              >
             </template>
           </el-table-column>
-          <el-table-column prop="created_by_name" :label="$t('testcase.importOperator')" width="140" />
-          <el-table-column prop="created_at" :label="$t('testcase.createdAt')" width="180">
+          <el-table-column
+            prop="created_by_name"
+            :label="$t('testcase.importOperator')"
+            width="140"
+          />
+          <el-table-column
+            prop="created_at"
+            :label="$t('testcase.createdAt')"
+            width="180"
+          >
             <template #default="{ row }">
               {{ formatDate(row.created_at) }}
             </template>
           </el-table-column>
-          <el-table-column prop="completed_at" :label="$t('testcase.completedAt')" width="180">
+          <el-table-column
+            prop="completed_at"
+            :label="$t('testcase.completedAt')"
+            width="180"
+          >
             <template #default="{ row }">
-              {{ row.completed_at ? formatDate(row.completed_at) : '-' }}
+              {{ row.completed_at ? formatDate(row.completed_at) : "-" }}
             </template>
           </el-table-column>
-          <el-table-column :label="$t('project.actions')" width="180" fixed="right">
+          <el-table-column
+            :label="$t('project.actions')"
+            width="180"
+            fixed="right"
+          >
             <template #default="{ row }">
-              <el-button size="small" @click="showRecordDetail(row)">{{ $t('common.view') }}</el-button>
+              <el-button size="small" @click="showRecordDetail(row)">{{
+                $t("common.view")
+              }}</el-button>
               <el-button
                 v-if="row.failed_count > 0"
                 size="small"
                 type="danger"
                 @click="downloadFailureReport(row)"
               >
-                {{ $t('testcase.downloadFailureReport') }}
+                {{ $t("testcase.downloadFailureReport") }}
               </el-button>
             </template>
           </el-table-column>
@@ -81,32 +125,41 @@
       width="720px"
     >
       <el-descriptions :column="2" border v-if="currentRecord">
-        <el-descriptions-item :label="$t('testcase.importProject')">{{ currentRecord.project_name }}</el-descriptions-item>
-        <el-descriptions-item :label="$t('testcase.importStatus')">{{ getStatusText(currentRecord.status) }}</el-descriptions-item>
-        <el-descriptions-item :label="$t('testcase.importProgress')">{{ currentRecord.progress }}%</el-descriptions-item>
+        <el-descriptions-item :label="$t('testcase.importProject')">{{
+          currentRecord.project_name
+        }}</el-descriptions-item>
+        <el-descriptions-item :label="$t('testcase.importStatus')">{{
+          getStatusText(currentRecord.status)
+        }}</el-descriptions-item>
+        <el-descriptions-item :label="$t('testcase.importProgress')"
+          >{{ currentRecord.progress }}%</el-descriptions-item
+        >
         <el-descriptions-item :label="$t('testcase.importSummary')">
           {{ currentRecord.success_count }}/{{ currentRecord.total_rows }},
-          {{ $t('testcase.failed') }} {{ currentRecord.failed_count }}
+          {{ $t("testcase.failed") }} {{ currentRecord.failed_count }}
         </el-descriptions-item>
         <el-descriptions-item :label="$t('testcase.errorMessage')" :span="2">
-          {{ currentRecord.error_message || '-' }}
+          {{ currentRecord.error_message || "-" }}
         </el-descriptions-item>
       </el-descriptions>
 
       <div class="failure-section">
         <div class="failure-header">
-          <span>{{ $t('testcase.failureDetails') }}</span>
+          <span>{{ $t("testcase.failureDetails") }}</span>
           <el-button
             v-if="currentRecord?.failed_count > 0"
             type="danger"
             size="small"
             @click="downloadFailureReport(currentRecord)"
           >
-            {{ $t('testcase.downloadFailureReport') }}
+            {{ $t("testcase.downloadFailureReport") }}
           </el-button>
         </div>
 
-        <el-empty v-if="!currentRecord?.failure_details?.length" :description="$t('testcase.noFailureDetails')" />
+        <el-empty
+          v-if="!currentRecord?.failure_details?.length"
+          :description="$t('testcase.noFailureDetails')"
+        />
 
         <el-table
           v-else
@@ -116,10 +169,17 @@
           style="width: 100%"
         >
           <el-table-column prop="row_number" label="Row" width="90" />
-          <el-table-column prop="title" :label="$t('testcase.caseTitle')" min-width="180" />
-          <el-table-column :label="$t('testcase.failureReason')" min-width="280">
+          <el-table-column
+            prop="title"
+            :label="$t('testcase.caseTitle')"
+            min-width="180"
+          />
+          <el-table-column
+            :label="$t('testcase.failureReason')"
+            min-width="280"
+          >
             <template #default="{ row }">
-              {{ row.errors?.join('；') || '-' }}
+              {{ row.errors?.join("；") || "-" }}
             </template>
           </el-table-column>
         </el-table>
@@ -129,133 +189,140 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
-import dayjs from 'dayjs'
-import api from '@/utils/api'
+import { onBeforeUnmount, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
+import { ElMessage } from "element-plus";
+import dayjs from "dayjs";
+import api from "@/utils/api";
 
-const router = useRouter()
-const { t } = useI18n()
+const router = useRouter();
+const { t } = useI18n();
 
-const loading = ref(false)
-const records = ref([])
-const total = ref(0)
-const currentPage = ref(1)
-const pageSize = ref(10)
-const detailDialogVisible = ref(false)
-const currentRecord = ref(null)
+const loading = ref(false);
+const records = ref([]);
+const total = ref(0);
+const currentPage = ref(1);
+const pageSize = ref(10);
+const detailDialogVisible = ref(false);
+const currentRecord = ref(null);
 
-let pollTimer = null
+let pollTimer = null;
 
 const formatDate = (dateString) => {
-  return dayjs(dateString).format('YYYY-MM-DD HH:mm')
-}
+  return dayjs(dateString).format("YYYY-MM-DD HH:mm");
+};
 
 const getStatusText = (status) => {
-  return t(`testcase.importStatusMap.${status}`) || status
-}
+  return t(`testcase.importStatusMap.${status}`) || status;
+};
 
 const getStatusType = (status) => {
   const typeMap = {
-    pending: 'info',
-    importing: 'warning',
-    completed: 'success',
-    partial_success: 'warning',
-    failed: 'danger'
-  }
-  return typeMap[status] || 'info'
-}
+    pending: "info",
+    importing: "warning",
+    completed: "success",
+    partial_success: "warning",
+    failed: "danger",
+  };
+  return typeMap[status] || "info";
+};
 
 const startPolling = () => {
-  stopPolling()
-  if (!records.value.some(item => ['pending', 'importing'].includes(item.status))) {
-    return
+  stopPolling();
+  if (
+    !records.value.some((item) =>
+      ["pending", "importing"].includes(item.status),
+    )
+  ) {
+    return;
   }
 
   pollTimer = window.setInterval(() => {
-    fetchRecords(false)
-  }, 5000)
-}
+    fetchRecords(false);
+  }, 5000);
+};
 
 const stopPolling = () => {
   if (pollTimer) {
-    window.clearInterval(pollTimer)
-    pollTimer = null
+    window.clearInterval(pollTimer);
+    pollTimer = null;
   }
-}
+};
 
 const fetchRecords = async (showLoading = true) => {
   if (showLoading) {
-    loading.value = true
+    loading.value = true;
   }
   try {
-    const response = await api.get('/testcases/import-records/', {
+    const response = await api.get("/testcases/import-records/", {
       params: {
         page: currentPage.value,
-        page_size: pageSize.value
-      }
-    })
-    records.value = response.data.results || []
-    total.value = response.data.count || 0
-    startPolling()
+        page_size: pageSize.value,
+      },
+    });
+    records.value = response.data.results || [];
+    total.value = response.data.count || 0;
+    startPolling();
   } catch (error) {
-    ElMessage.error(t('testcase.fetchImportRecordsFailed'))
+    ElMessage.error(t("testcase.fetchImportRecordsFailed"));
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const handleSizeChange = () => {
-  currentPage.value = 1
-  fetchRecords()
-}
+  currentPage.value = 1;
+  fetchRecords();
+};
 
 const showRecordDetail = async (record) => {
   try {
-    const response = await api.get(`/testcases/import-records/${record.id}/`)
-    currentRecord.value = response.data
-    detailDialogVisible.value = true
+    const response = await api.get(`/testcases/import-records/${record.id}/`);
+    currentRecord.value = response.data;
+    detailDialogVisible.value = true;
   } catch (error) {
-    ElMessage.error(t('testcase.fetchImportDetailFailed'))
+    ElMessage.error(t("testcase.fetchImportDetailFailed"));
   }
-}
+};
 
 const downloadBlob = (blob, fileName) => {
-  const url = window.URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  window.URL.revokeObjectURL(url)
-}
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
 
 const downloadFailureReport = async (record) => {
   if (!record.failed_count) {
-    ElMessage.warning(t('testcase.noImportFile'))
-    return
+    ElMessage.warning(t("testcase.noImportFile"));
+    return;
   }
 
   try {
-    const response = await api.get(`/testcases/import-records/${record.id}/failure-report/`, {
-      responseType: 'blob'
-    })
-    downloadBlob(response.data, `${record.import_no}_failed_rows.xlsx`)
+    const response = await api.get(
+      `/testcases/import-records/${record.id}/failure-report/`,
+      {
+        responseType: "blob",
+      },
+    );
+    downloadBlob(response.data, `${record.import_no}_failed_rows.xlsx`);
   } catch (error) {
-    ElMessage.error(t('testcase.downloadFailureReportFailed'))
+    ElMessage.error(t("testcase.downloadFailureReportFailed"));
   }
-}
+};
 
 onMounted(() => {
-  fetchRecords()
-})
+  fetchRecords();
+});
 
 onBeforeUnmount(() => {
-  stopPolling()
-})
+  stopPolling();
+});
 </script>
 
 <style lang="scss" scoped>

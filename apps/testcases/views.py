@@ -6,6 +6,7 @@ from rest_framework import filters
 from django.db import models
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.views import APIView
+from kombu.exceptions import OperationalError
 
 from .models import TestCase, TestCaseStep, TestCaseAttachment, TestCaseComment, TestCaseImportRecord
 from .serializers import (
@@ -51,13 +52,26 @@ class TestCaseListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         accessible_projects = get_user_accessible_projects(user)
-        return TestCase.objects.filter(
+        queryset = TestCase.objects.filter(
             project__in=accessible_projects
         ).select_related(
             'author', 'assignee', 'project'
         ).prefetch_related(
             'versions'
         ).distinct()
+
+        project_ids = self.request.query_params.getlist('project_ids')
+        if not project_ids:
+            project_ids_text = self.request.query_params.get('project_ids', '')
+            project_ids = [item for item in project_ids_text.split(',') if item]
+        if project_ids:
+            queryset = queryset.filter(project_id__in=project_ids)
+
+        version_id = self.request.query_params.get('version')
+        if version_id:
+            queryset = queryset.filter(versions__id=version_id)
+
+        return queryset.distinct()
     
     def get_user_accessible_projects(self, user):
         """获取用户有权限访问的项目"""
@@ -190,8 +204,12 @@ class TestCaseImportRecordListCreateView(generics.ListCreateAPIView):
             template_version='v1'
         )
 
-        celery_task = import_testcases_from_excel.delay(record.id)
-        record.celery_task_id = celery_task.id
+        try:
+            celery_task = import_testcases_from_excel.delay(record.id)
+        except OperationalError:
+            celery_task = import_testcases_from_excel.apply(args=[record.id])
+        record.refresh_from_db()
+        record.celery_task_id = celery_task.id or record.celery_task_id
         record.save(update_fields=['celery_task_id', 'updated_at'])
 
         serializer = self.get_serializer(record)

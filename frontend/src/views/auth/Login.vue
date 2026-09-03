@@ -1,929 +1,517 @@
 <template>
   <div class="login-container">
-    <!-- 左侧展示区域 -->
-    <div class="showcase-section">
+    <section class="showcase-section">
+      <div class="language-switcher">
+        <el-dropdown @command="handleLanguageChange">
+          <span class="language-trigger">
+            {{
+              currentLanguage === "zh-cn"
+                ? $t("auth.languageZhCN")
+                : $t("auth.languageEn")
+            }}
+            <el-icon><ArrowDown /></el-icon>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                command="zh-cn"
+                :disabled="currentLanguage === 'zh-cn'"
+              >
+                简体中文
+              </el-dropdown-item>
+              <el-dropdown-item
+                command="en"
+                :disabled="currentLanguage === 'en'"
+              >
+                English
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+
       <div class="showcase-content">
-        <!-- Logo和标题 -->
         <div class="brand-header">
-          <div class="logo-wrapper">
-            <div class="logo-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <h1 class="brand-title">TestHub</h1>
+          <div class="logo-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M12 2L2 7L12 12L22 7L12 2Z"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M2 17L12 22L22 17"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M2 12L12 17L22 12"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              />
+            </svg>
           </div>
-          <p class="brand-subtitle">AI-Powered Testing Platform</p>
+          <div>
+            <h1>QAFlow</h1>
+            <p>AI-Powered Testing Platform</p>
+          </div>
         </div>
 
-        <!-- 特性展示 -->
-        <div class="features-grid">
-          <div class="feature-card" v-for="(feature, index) in features" :key="index">
-            <div class="feature-icon" :style="{ backgroundColor: feature.color }">
+        <div class="feature-grid">
+          <div
+            v-for="feature in features"
+            :key="feature.title"
+            class="feature-card"
+          >
+            <div class="feature-icon" :style="{ background: feature.color }">
               <component :is="feature.icon" />
             </div>
-            <div class="feature-content">
+            <div>
               <h3>{{ feature.title }}</h3>
               <p>{{ feature.description }}</p>
             </div>
           </div>
         </div>
-
-        <!-- AI能力展示 -->
-        <div class="ai-capabilities">
-          <div class="capability-badge">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>{{ $t('auth.aiCaseGeneration') }}</span>
-          </div>
-          <div class="capability-badge">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-              <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span>{{ $t('auth.aiIntelligentTesting') }}</span>
-          </div>
-          <div class="capability-badge">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-              <path d="M3 9H21" stroke="currentColor" stroke-width="2"/>
-              <path d="M9 21V9" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            <span>{{ $t('auth.automatedExecution') }}</span>
-          </div>
-          <div class="capability-badge">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-              <path d="M12 6V12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M12 12L16 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M12 12L8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M12 12L16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path d="M12 12L8 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span>{{ $t('auth.scheduledTasks') }}</span>
-          </div>
-        </div>
       </div>
+    </section>
 
-      <!-- 装饰元素 -->
-      <div class="floating-shapes">
-        <!-- 语言切换 -->
-        <div class="language-switcher">
-          <el-dropdown @command="handleLanguageChange" class="language-dropdown">
-            <span class="el-dropdown-link">
-              <span class="language-icon">{{ currentLanguage === 'zh-cn' ? '🇨🇳' : '🇺🇸' }}</span>
-              <span class="language-text">{{ currentLanguage === 'zh-cn' ? $t('auth.languageZhCN') : $t('auth.languageEn') }}</span>
-              <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-            </span>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="zh-cn" :disabled="currentLanguage === 'zh-cn'">
-                  <span class="dropdown-flag">🇨🇳</span> {{ $t('auth.languageZhCN') }}
-                </el-dropdown-item>
-                <el-dropdown-item command="en" :disabled="currentLanguage === 'en'">
-                  <span class="dropdown-flag">🇺🇸</span> English
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-        <div class="shape shape-1"></div>
-        <div class="shape shape-2"></div>
-        <div class="shape shape-3"></div>
-        <div class="shape shape-4"></div>
-      </div>
-    </div>
-
-    <!-- 右侧登录表单 -->
-    <div class="login-section">
-      <div class="login-form-wrapper">
+    <section class="login-section">
+      <div class="login-card">
         <div class="form-header">
-          <h2>{{ $t('auth.welcomeBack') }}</h2>
-          <p>{{ $t('auth.loginSubtitle') }}</p>
+          <p class="eyebrow">Welcome</p>
+          <h2>{{ $t("auth.welcomeBack") }}</h2>
+          <p>{{ $t("auth.loginSubtitle") }}</p>
         </div>
 
-        <!-- 登录模式切换 -->
-        <div class="mode-tabs">
-          <button
-            type="button"
-            class="mode-tab"
-            :class="{ active: loginMode === 'password' }"
-            @click="loginMode = 'password'"
-          >
-            密码登录
-          </button>
-          <button
-            type="button"
-            class="mode-tab"
-            :class="{ active: loginMode === 'sms' }"
-            @click="loginMode = 'sms'; refreshCaptcha()"
-          >
-            短信登录
-          </button>
-        </div>
+        <el-alert
+          v-if="loginError"
+          :title="loginError"
+          type="error"
+          show-icon
+          :closable="true"
+          class="login-error"
+          @close="loginError = ''"
+        />
 
         <el-form
           ref="formRef"
           :model="form"
           :rules="rules"
-          @submit.prevent="handleLogin"
           class="login-form"
+          @submit.prevent="handleLogin"
         >
-          <!-- 密码登录 -->
-          <template v-if="loginMode === 'password'">
-            <el-form-item prop="username">
-              <el-input
-                v-model="form.username"
-                :placeholder="$t('auth.usernamePlaceholder')"
-                size="large"
-                :prefix-icon="User"
-              />
-            </el-form-item>
+          <el-form-item prop="username">
+            <el-input
+              v-model="form.username"
+              :placeholder="$t('auth.usernamePlaceholder')"
+              size="large"
+              :prefix-icon="User"
+              clearable
+            />
+          </el-form-item>
 
-            <el-form-item prop="password">
-              <el-input
-                v-model="form.password"
-                type="password"
-                :placeholder="$t('auth.passwordPlaceholder')"
-                size="large"
-                :prefix-icon="Lock"
-                show-password
-                @keyup.enter="handleLogin"
-              />
-            </el-form-item>
-          </template>
-
-          <!-- 短信登录 -->
-          <template v-if="loginMode === 'sms'">
-            <el-form-item prop="phone">
-              <el-input
-                v-model="form.phone"
-                placeholder="请输入手机号"
-                size="large"
-                :prefix-icon="Phone"
-                maxlength="11"
-              />
-            </el-form-item>
-
-            <!-- 图形验证码 -->
-            <el-row :gutter="12">
-              <el-col :span="14">
-                <el-form-item prop="captcha_code">
-                  <el-input
-                    v-model="form.captcha_code"
-                    placeholder="图形验证码"
-                    size="large"
-                    maxlength="4"
-                  />
-                </el-form-item>
-              </el-col>
-              <el-col :span="10">
-                <img
-                  :src="captchaImage"
-                  alt="验证码"
-                  class="captcha-img"
-                  @click="refreshCaptcha"
-                  title="点击刷新验证码"
-                />
-              </el-col>
-            </el-row>
-
-            <!-- 短信验证码 -->
-            <el-form-item prop="verify_code">
-              <el-input
-                v-model="form.verify_code"
-                placeholder="短信验证码"
-                size="large"
-                maxlength="6"
-              >
-                <template #append>
-                  <el-button
-                    :disabled="smsCountdown > 0 || !form.phone || !form.captcha_code"
-                    :loading="sendingSms"
-                    @click="sendVerifyCode"
-                    style="min-width: 110px"
-                  >
-                    {{ smsCountdown > 0 ? `${smsCountdown}s后重试` : '发送验证码' }}
-                  </el-button>
-                </template>
-              </el-input>
-            </el-form-item>
-          </template>
+          <el-form-item prop="password">
+            <el-input
+              v-model="form.password"
+              type="password"
+              :placeholder="$t('auth.passwordPlaceholder')"
+              size="large"
+              :prefix-icon="Lock"
+              show-password
+              clearable
+              @keyup.enter="handleLogin"
+            />
+          </el-form-item>
 
           <el-form-item>
             <el-button
               type="primary"
               size="large"
               :loading="loading"
-              @click="handleLogin"
               class="login-button"
+              @click="handleLogin"
             >
-              <span v-if="!loading">{{ $t('auth.login') }}</span>
-              <span v-else>{{ $t('auth.loggingIn') }}</span>
+              {{ loading ? $t("auth.loggingIn") : $t("auth.login") }}
             </el-button>
           </el-form-item>
-
-          <div class="form-footer">
-            <router-link to="/register" class="register-link">
-              {{ $t('auth.noAccount') }}<span>{{ $t('auth.signUpNow') }}</span>
-            </router-link>
-          </div>
         </el-form>
 
-        <!-- 底部信息 -->
-        <div class="bottom-info">
-          <p>{{ $t('auth.copyright') }}</p>
+        <div class="form-footer">
+          <router-link to="/register" class="register-link">
+            {{ $t("auth.noAccount") }} <span>{{ $t("auth.signUpNow") }}</span>
+          </router-link>
         </div>
+
+        <p class="bottom-info">{{ $t("auth.copyright") }}</p>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
-import { User, Lock, Phone, Document, MagicStick, Connection, TrendCharts, ArrowDown } from '@element-plus/icons-vue'
-import { useUserStore } from '@/stores/user'
-import { useAppStore } from '@/stores/app'
-import api from '@/utils/api'
+import { computed, reactive, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
+import { ElMessage } from "element-plus";
+import {
+  ArrowDown,
+  Connection,
+  Document,
+  Lock,
+  MagicStick,
+  TrendCharts,
+  User,
+} from "@element-plus/icons-vue";
+import { DEFAULT_AUTHENTICATED_ROUTE } from "@/config/platformModules";
+import { useAppStore } from "@/stores/app";
+import { useUserStore } from "@/stores/user";
 
-const router = useRouter()
-const userStore = useUserStore()
-const appStore = useAppStore()
-const { t } = useI18n()
+const router = useRouter();
+const route = useRoute();
+const userStore = useUserStore();
+const appStore = useAppStore();
+const { t } = useI18n();
 
-// 当前语言
-const currentLanguage = computed(() => appStore.language)
+const formRef = ref();
+const loading = ref(false);
+const loginError = ref("");
 
-// 语言切换（无刷新）
-const handleLanguageChange = (lang) => {
-  appStore.setLanguage(lang)
-}
-const formRef = ref()
-const loading = ref(false)
-const loginMode = ref('password')
-
-// 图形验证码相关
-const captchaImage = ref('')
-const captchaToken = ref('')
-
-// 短信验证码相关
-const sendingSms = ref(false)
-const smsCountdown = ref(0)
-let countdownTimer = null
+const currentLanguage = computed(() => appStore.language);
 
 const form = reactive({
-  username: '',
-  password: '',
-  phone: '',
-  captcha_code: '',
-  verify_code: '',
-  verify_code_token: ''
-})
+  username: "",
+  password: "",
+});
 
-const validatePhone = (rule, value, callback) => {
-  if (!value) {
-    callback(new Error('请输入手机号'))
-  } else if (!/^1[3-9]\d{9}$/.test(value)) {
-    callback(new Error('手机号格式不正确'))
-  } else {
-    callback()
-  }
-}
+const resolvePostLoginRoute = () => {
+  return typeof route.query.redirect === "string" && route.query.redirect
+    ? route.query.redirect
+    : DEFAULT_AUTHENTICATED_ROUTE;
+};
 
 const rules = {
   username: [
-    { required: true, message: computed(() => t('auth.usernameRequired')), trigger: 'blur' }
+    {
+      required: true,
+      message: computed(() => t("auth.usernameRequired")),
+      trigger: "blur",
+    },
   ],
   password: [
-    { required: true, message: computed(() => t('auth.passwordRequired')), trigger: 'blur' },
-    { min: 6, message: computed(() => t('auth.passwordLength')), trigger: 'blur' }
+    {
+      required: true,
+      message: computed(() => t("auth.passwordRequired")),
+      trigger: "blur",
+    },
+    {
+      min: 6,
+      message: computed(() => t("auth.passwordLength")),
+      trigger: "blur",
+    },
   ],
-  phone: [
-    { required: true, validator: validatePhone, trigger: 'blur' }
-  ],
-  captcha_code: [
-    { required: true, message: '请输入图形验证码', trigger: 'blur' }
-  ],
-  verify_code: [
-    { required: true, message: '请输入短信验证码', trigger: 'blur' }
-  ]
-}
+};
 
-// 特性数据
 const features = computed(() => [
   {
     icon: Document,
-    title: t('auth.aiCaseGeneration'),
-    description: t('auth.aiCaseGenerationDesc'),
-    color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    title: t("auth.aiCaseGeneration"),
+    description: t("auth.aiCaseGenerationDesc"),
+    color: "linear-gradient(135deg, #4f8cff 0%, #2f54eb 100%)",
   },
   {
     icon: MagicStick,
-    title: t('auth.aiIntelligentTesting'),
-    description: t('auth.aiIntelligentTestingDesc'),
-    color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+    title: t("auth.aiIntelligentTesting"),
+    description: t("auth.aiIntelligentTestingDesc"),
+    color: "linear-gradient(135deg, #33b679 0%, #0f9f6e 100%)",
   },
   {
     icon: Connection,
-    title: t('auth.multiTypeTesting'),
-    description: t('auth.multiTypeTestingDesc'),
-    color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+    title: t("auth.multiTypeTesting"),
+    description: t("auth.multiTypeTestingDesc"),
+    color: "linear-gradient(135deg, #13c2c2 0%, #08979c 100%)",
   },
   {
     icon: TrendCharts,
-    title: t('auth.dataAnalysis'),
-    description: t('auth.dataAnalysisDesc'),
-    color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
-  }
-])
+    title: t("auth.dataAnalysis"),
+    description: t("auth.dataAnalysisDesc"),
+    color: "linear-gradient(135deg, #fa8c16 0%, #f5222d 100%)",
+  },
+]);
 
-// 获取图形验证码
-const refreshCaptcha = async () => {
-  try {
-    const response = await api.get('/auth/captcha/')
-    captchaImage.value = response.data.image
-    captchaToken.value = response.data.token
-    form.captcha_code = ''
-  } catch (error) {
-    // 静默失败
-  }
-}
+const handleLanguageChange = (lang) => {
+  appStore.setLanguage(lang);
+};
 
-// 发送短信验证码
-const sendVerifyCode = async () => {
-  if (!form.phone) {
-    ElMessage.warning('请先输入手机号')
-    return
-  }
-  if (!form.captcha_code) {
-    ElMessage.warning('请先输入图形验证码')
-    return
-  }
+const resolveLoginError = (error, fallback = "登录失败，请稍后重试") => {
+  return (
+    error?.userMessage ||
+    error?.response?.data?.error ||
+    error?.response?.data?.detail ||
+    error?.response?.data?.message ||
+    fallback
+  );
+};
 
-  sendingSms.value = true
-  try {
-    const response = await api.post('/auth/send-register-code/', {
-      phone: form.phone,
-      captcha_token: captchaToken.value,
-      captcha_code: form.captcha_code,
-      mode: 'login'
-    })
-    form.verify_code_token = response.data.verify_code_token
-    ElMessage.success('验证码已发送')
-    // 开始 60 秒倒计时
-    smsCountdown.value = 60
-    countdownTimer = setInterval(() => {
-      smsCountdown.value--
-      if (smsCountdown.value <= 0) {
-        clearInterval(countdownTimer)
-        countdownTimer = null
-      }
-    }, 1000)
-  } catch (error) {
-    const errMsg = error.response?.data?.error || '验证码发送失败'
-    ElMessage.error(errMsg)
-    refreshCaptcha()
-  } finally {
-    sendingSms.value = false
-  }
-}
+const submitPasswordLogin = async () => {
+  await userStore.login({
+    username: form.username,
+    password: form.password,
+  });
+};
 
 const handleLogin = async () => {
-  if (!formRef.value) return
+  if (!formRef.value || loading.value) return;
+  loginError.value = "";
 
-  // 短信模式：校验手机号、图形验证码、短信验证码
-  if (loginMode.value === 'sms') {
-    await formRef.value.validate(async (valid) => {
-      if (valid) {
-        loading.value = true
-        try {
-          await userStore.smsLogin({
-            phone: form.phone,
-            verify_code: form.verify_code,
-            verify_code_token: form.verify_code_token
-          })
-          ElMessage.success(t('auth.loginSuccess'))
-          await router.replace('/home')
-        } catch (error) {
-          ElMessage.error(error.response?.data?.error || t('auth.loginFailed'))
-          refreshCaptcha()
-        } finally {
-          loading.value = false
-        }
-      }
-    })
-    return
-  }
-
-  // 密码模式
   await formRef.value.validate(async (valid) => {
-    if (valid) {
-      loading.value = true
-      try {
-        await userStore.login(form)
-        ElMessage.success(t('auth.loginSuccess'))
-        await router.replace('/home')
-      } catch (error) {
-        ElMessage.error(error.response?.data?.error || t('auth.loginFailed'))
-      } finally {
-        loading.value = false
-      }
+    if (!valid) return;
+    loading.value = true;
+    try {
+      await submitPasswordLogin();
+      ElMessage.success(t("auth.loginSuccess"));
+      await router.replace(resolvePostLoginRoute());
+    } catch (error) {
+      loginError.value = resolveLoginError(error, t("auth.loginFailed"));
+    } finally {
+      loading.value = false;
     }
-  })
-}
-
-onUnmounted(() => {
-  if (countdownTimer) {
-    clearInterval(countdownTimer)
-    countdownTimer = null
-  }
-})
+  });
+};
 </script>
 
 <style lang="scss" scoped>
 .login-container {
-  height: 100vh;
   display: flex;
-  background: #f5f7fa;
+  min-height: 100vh;
   overflow: hidden;
+  background: #f6f8fb;
 }
 
-.dropdown-flag {
-  font-size: 16px;
-  margin-right: 6px;
-}
-
-/* 左侧展示区域 */
 .showcase-section {
-  flex: 1;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   position: relative;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  padding: 60px;
-
-  .showcase-content {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-    max-width: 600px;
-    color: white;
-  }
-
-  .brand-header {
-    margin-bottom: 60px;
-    animation: fadeInDown 0.8s ease-out;
-
-    .logo-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 16px;
-
-      .logo-icon {
-        width: 60px;
-        height: 60px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        backdrop-filter: blur(10px);
-
-        svg {
-          width: 32px;
-          height: 32px;
-          color: white;
-        }
-      }
-
-      .brand-title {
-        font-size: 42px;
-        font-weight: 700;
-        margin: 0;
-        color: white;
-        letter-spacing: -1px;
-      }
-    }
-
-    .brand-subtitle {
-      font-size: 18px;
-      opacity: 0.9;
-      margin: 0;
-      font-weight: 300;
-      letter-spacing: 1px;
-    }
-  }
-
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    margin-bottom: 60px;
-
-    .feature-card {
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      padding: 24px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      transition: all 0.3s ease;
-      animation: fadeInUp 0.8s ease-out;
-      animation-delay: calc(var(--index) * 0.1s);
-
-      &:hover {
-        transform: translateY(-5px);
-        background: rgba(255, 255, 255, 0.15);
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-      }
-
-      .feature-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 16px;
-
-        :deep(svg) {
-          width: 24px;
-          height: 24px;
-          color: white;
-        }
-      }
-
-      .feature-content {
-        h3 {
-          font-size: 16px;
-          font-weight: 600;
-          margin: 0 0 8px 0;
-          color: white;
-        }
-
-        p {
-          font-size: 13px;
-          margin: 0;
-          opacity: 0.8;
-          line-height: 1.5;
-        }
-      }
-    }
-  }
-
-  .ai-capabilities {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    animation: fadeInUp 1s ease-out;
-
-    .capability-badge {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(10px);
-      padding: 10px 20px;
-      border-radius: 50px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      font-size: 14px;
-      font-weight: 500;
-
-      svg {
-        width: 18px;
-        height: 18px;
-      }
-    }
-  }
-
-  .floating-shapes {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    z-index: 1;
-
-    .language-switcher {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      z-index: 10;
-
-      .language-dropdown {
-        .el-dropdown-link {
-          display: flex;
-          align-items: center;
-          cursor: pointer;
-          color: white;
-          background: rgba(255, 255, 255, 0.15);
-          backdrop-filter: blur(10px);
-          padding: 8px 16px;
-          border-radius: 20px;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          transition: all 0.3s ease;
-          outline: none;
-
-          &:focus {
-            outline: none;
-          }
-
-          .language-icon {
-            font-size: 16px;
-            margin-right: 6px;
-            line-height: 1;
-          }
-
-          .language-text {
-            font-size: 14px;
-            margin-right: 4px;
-          }
-
-          &:hover {
-            background: rgba(255, 255, 255, 0.25);
-          }
-        }
-      }
-    }
-
-    .shape {
-      position: absolute;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.1);
-      animation: float 20s infinite;
-
-      &.shape-1 {
-        width: 300px;
-        height: 300px;
-        top: -100px;
-        left: -100px;
-        animation-delay: 0s;
-      }
-
-      &.shape-2 {
-        width: 200px;
-        height: 200px;
-        bottom: -50px;
-        right: -50px;
-        animation-delay: 5s;
-      }
-
-      &.shape-3 {
-        width: 150px;
-        height: 150px;
-        top: 50%;
-        right: 20%;
-        animation-delay: 10s;
-      }
-
-      &.shape-4 {
-        width: 100px;
-        height: 100px;
-        bottom: 30%;
-        left: 30%;
-        animation-delay: 15s;
-      }
-    }
-  }
+  padding: 64px;
+  color: #fff;
+  background:
+    radial-gradient(
+      circle at 18% 20%,
+      rgba(255, 255, 255, 0.24),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 80% 76%,
+      rgba(19, 194, 194, 0.26),
+      transparent 28%
+    ),
+    linear-gradient(135deg, #183153 0%, #0f766e 100%);
 }
 
-/* 右侧登录表单 */
+.language-switcher {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+}
+
+.language-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  color: #fff;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.showcase-content {
+  width: 100%;
+  max-width: 660px;
+}
+
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 44px;
+}
+
+.logo-icon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.logo-icon svg {
+  width: 34px;
+  height: 34px;
+}
+
+.brand-header h1 {
+  margin: 0;
+  font-size: 44px;
+  letter-spacing: -1px;
+}
+
+.brand-header p {
+  margin: 6px 0 0;
+  opacity: 0.82;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.feature-card {
+  display: flex;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.feature-icon {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+}
+
+.feature-icon :deep(svg) {
+  width: 22px;
+  height: 22px;
+}
+
+.feature-card h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.feature-card p {
+  margin: 0;
+  opacity: 0.78;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .login-section {
   width: 500px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
-  padding: 60px;
-  position: relative;
-
-  .login-form-wrapper {
-    width: 100%;
-    max-width: 400px;
-  }
-
-  .form-header {
-    text-align: center;
-    margin-bottom: 24px;
-    animation: fadeIn 0.8s ease-out;
-
-    h2 {
-      font-size: 28px;
-      font-weight: 700;
-      color: #303133;
-      margin: 0 0 12px 0;
-    }
-
-    p {
-      font-size: 14px;
-      color: #909399;
-      margin: 0;
-      line-height: 1.6;
-    }
-  }
-
-  .mode-tabs {
-    display: flex;
-    background: #f0f2f5;
-    border-radius: 8px;
-    padding: 4px;
-    margin-bottom: 24px;
-
-    .mode-tab {
-      flex: 1;
-      padding: 8px 16px;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      color: #909399;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      background: transparent;
-
-      &.active {
-        background: white;
-        color: #667eea;
-        font-weight: 600;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-      }
-
-      &:hover:not(.active) {
-        color: #606266;
-      }
-    }
-  }
-
-  .captcha-img {
-    width: 100%;
-    height: 40px;
-    border-radius: 4px;
-    cursor: pointer;
-    border: 1px solid #dcdfe6;
-  }
-
-  .login-form {
-    :deep(.el-input__wrapper) {
-      padding: 8px 16px;
-      box-shadow: 0 0 0 1px #dcdfe6 inset;
-      transition: all 0.3s ease;
-
-      &:hover {
-        box-shadow: 0 0 0 1px #c0c4cc inset;
-      }
-
-      &.is-focus {
-        box-shadow: 0 0 0 1px #667eea inset;
-      }
-    }
-
-    :deep(.el-form-item) {
-      margin-bottom: 24px;
-    }
-
-    .login-button {
-      width: 100%;
-      height: 48px;
-      font-size: 16px;
-      font-weight: 600;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border: none;
-      transition: all 0.3s ease;
-
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-      }
-
-      &:active {
-        transform: translateY(0);
-      }
-    }
-  }
-
-  .form-footer {
-    text-align: center;
-    margin-top: 24px;
-
-    .register-link {
-      color: #909399;
-      text-decoration: none;
-      font-size: 14px;
-      transition: all 0.3s ease;
-
-      span {
-        color: #667eea;
-        font-weight: 600;
-      }
-
-      &:hover {
-        color: #667eea;
-      }
-    }
-  }
-
-  .bottom-info {
-    margin-top: 60px;
-    text-align: center;
-
-    p {
-      font-size: 12px;
-      color: #c0c4cc;
-      margin: 0;
-    }
-  }
+  padding: 48px;
+  background: #fff;
 }
 
-/* 动画 */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.login-card {
+  width: 100%;
+  max-width: 390px;
 }
 
-@keyframes fadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.form-header {
+  margin-bottom: 24px;
 }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.eyebrow {
+  margin: 0 0 8px;
+  color: #0f766e;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-@keyframes float {
-  0%, 100% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-  25% {
-    transform: translate(30px, -30px) rotate(90deg);
-  }
-  50% {
-    transform: translate(-20px, 20px) rotate(180deg);
-  }
-  75% {
-    transform: translate(20px, 10px) rotate(270deg);
-  }
+.form-header h2 {
+  margin: 0 0 10px;
+  color: #1f2937;
+  font-size: 30px;
 }
 
-/* 响应式设计 */
-@media (max-width: 1200px) {
-  .showcase-section {
-    padding: 40px;
-
-    .features-grid {
-      grid-template-columns: 1fr;
-    }
-  }
+.form-header p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.6;
 }
 
-@media (max-width: 768px) {
+.login-error {
+  margin-bottom: 16px;
+}
+
+.login-button {
+  width: 100%;
+  height: 46px;
+  font-weight: 700;
+  border: none;
+  background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+}
+
+.form-footer {
+  text-align: center;
+}
+
+.register-link {
+  color: #64748b;
+  text-decoration: none;
+}
+
+.register-link span {
+  color: #0f766e;
+  font-weight: 700;
+}
+
+.bottom-info {
+  margin-top: 48px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+@media (max-width: 980px) {
   .login-container {
     flex-direction: column;
   }
 
   .showcase-section {
-    min-height: 50vh;
-    padding: 30px;
+    min-height: 42vh;
+    padding: 40px 24px;
+  }
 
-    .brand-header {
-      margin-bottom: 30px;
-
-      .logo-wrapper .brand-title {
-        font-size: 32px;
-      }
-    }
-
-    .features-grid {
-      display: none;
-    }
+  .feature-grid {
+    grid-template-columns: 1fr;
   }
 
   .login-section {
     width: 100%;
-    padding: 30px;
+    padding: 36px 24px;
+  }
+}
+
+@media (max-width: 640px) {
+  .feature-grid {
+    display: none;
   }
 }
 </style>

@@ -127,6 +127,178 @@ components:
     source: outputs.last
   enabled: true
   sort_order: 30
+- type: clear_runtime_blockers
+  name: 清理启动遮挡
+  category: utility
+  description: 显式处理启动弹窗、青少年模式提示、社区侧边栏引导等会遮挡操作的浮层
+  schema:
+    required: []
+    properties:
+      timeout:
+        type: number
+  default_config:
+    timeout: 4
+    selector_type: business
+  enabled: true
+  sort_order: 35
+- type: assert_logout_confirm_dialog
+  name: 断言退出登录确认弹窗
+  category: assert
+  description: 一次性校验退出登录确认弹窗的文案、取消按钮和确认按钮，减少重复等待
+  schema:
+    required: []
+    properties:
+      timeout:
+        type: number
+      expected:
+        type: string
+  default_config:
+    timeout: 2
+    expected: 确认退出？
+    selector_type: business
+  enabled: true
+  sort_order: 35
+- type: click_other_followed_community
+  name: 选择其他已关注社区
+  category: action
+  description: 在社区抽屉中选择一个非当前社区，并记录所选社区名称
+  schema:
+    required: []
+    properties:
+      timeout:
+        type: number
+  default_config:
+    timeout: 8
+    selector_type: business
+  enabled: true
+  sort_order: 36
+- type: remember_current_community
+  name: 记录当前社区
+  category: utility
+  description: 读取底部当前社区 Tab 文案，作为后续社区切换断言基准
+  schema:
+    required: []
+    properties:
+      timeout:
+        type: number
+  default_config:
+    timeout: 5
+    selector_type: business
+  enabled: true
+  sort_order: 36
+- type: assert_current_community_switched
+  name: 断言当前社区已切换
+  category: assert
+  description: 校验底部当前社区 Tab 已切换为上一步选择的社区
+  schema:
+    required: []
+    properties:
+      timeout:
+        type: number
+      expected:
+        type: string
+      community_name:
+        type: string
+  default_config:
+    timeout: 8
+    expected: ''
+    community_name: ''
+    selector_type: business
+  enabled: true
+  sort_order: 37
+- type: click_member_hall_entry
+  name: 点击全员大厅入口
+  category: action
+  description: 按社区首页入口图标定位全员大厅，避免标题或位置变化导致点到专属房间
+  schema:
+    required: []
+    properties:
+      timeout:
+        type: number
+      duration:
+        type: number
+  default_config:
+    timeout: 10
+    duration: 0.8
+    selector_type: business
+  enabled: true
+  sort_order: 38
+- type: assert_member_hall_opened
+  name: 断言全员大厅已打开
+  category: assert
+  description: 校验已进入全员大厅聊天页，并排除误入语音房或专属房详情页
+  schema:
+    required: []
+    properties:
+      timeout:
+        type: number
+  default_config:
+    timeout: 8
+    selector_type: business
+  enabled: true
+  sort_order: 39
+- type: assert_hall_message_sent
+  name: 断言大厅消息已发送
+  category: assert
+  description: 校验上一步输入的文本消息已经出现在全员大厅消息列表中
+  schema:
+    required: []
+    properties:
+      timeout:
+        type: number
+      expected:
+        type: string
+  default_config:
+    timeout: 8
+    expected: ''
+    selector_type: business
+  enabled: true
+  sort_order: 39
+- type: click_available_voice_room
+  name: 点击可进入语音房
+  category: action
+  description: 在语音房列表中跳过已满/已锁房间，并按房型选择普通语音房或互动语音房
+  schema:
+    required: []
+    properties:
+      timeout:
+        type: number
+      duration:
+        type: number
+      room_type:
+        type: string
+        enum:
+        - any
+        - normal
+        - interactive
+  default_config:
+    timeout: 10
+    duration: 0.8
+    room_type: normal
+    selector_type: business
+  enabled: true
+  sort_order: 40
+- type: assert_voice_room_type
+  name: 断言语音房类型
+  category: assert
+  description: 校验上一步点击进入的房间类型，避免普通语音房用例误点互动语音房
+  schema:
+    required:
+    - expected
+    properties:
+      expected:
+        type: string
+        enum:
+        - normal
+        - interactive
+      room_type:
+        type: string
+  default_config:
+    expected: normal
+    room_type: normal
+    selector_type: business
+  enabled: true
+  sort_order: 41
 - type: swipe
   name: 滑动
   category: action
@@ -456,7 +628,7 @@ components:
 - type: assert
   name: 断言
   category: assert
-  description: 支持文本/数值/正则/范围/存在性/图片6种断言
+  description: 支持文本/数值/正则/范围/存在性/图片/页面跳转断言
   schema:
     required:
     - assert_type
@@ -468,6 +640,10 @@ components:
       selector:
         type: string
       expected:
+        type: string
+      package_name:
+        type: string
+      activity:
         type: string
       match_mode:
         type: string
@@ -492,6 +668,8 @@ components:
     selector_type: region
     selector: ''
     expected: ''
+    package_name: ''
+    activity: ''
     match_mode: contains
     image_scope: common
     expected_image_scope: common

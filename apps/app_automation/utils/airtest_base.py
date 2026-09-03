@@ -8,12 +8,17 @@ from airtest.core.api import (
 )
 from airtest.core.error import NoDeviceError, TargetNotFoundError
 import os
+import re
 import time
 import logging
 import threading
 import queue
+import xml.etree.ElementTree as ET
 from typing import Optional
 from django.conf import settings
+from airtest.utils import snippet as airtest_snippet
+
+from .ui_state import STARTUP_DIALOG_SELECTORS, dump_ui_xml as dump_current_ui_xml, handle_dialogs, tap_selector
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +46,8 @@ class AirtestBase:
         """
         self.device_id = device_id
         self.is_connected = False
+        self._airtest_console_handlers: list[logging.Handler] = []
+        self._airtest_shutdown_restored = False
         
         # 设置截图目录: media/app-automation/screenshots/{username}/
         if screenshots_dir:
@@ -68,6 +75,7 @@ class AirtestBase:
         cfg = {**self.DEFAULT_CONFIG}
         if config:
             cfg.update(config)
+        self._prepare_airtest_runtime()
         
         retry_count = cfg['RETRY_COUNT']
         retry_interval = cfg['RETRY_INTERVAL']
@@ -160,26 +168,77 @@ class AirtestBase:
             return False
     
     def teardown_airtest(self) -> None:
-        """清理Airtest环境，断开设备连接"""
+        """Cleanup the Airtest runtime and release the device connection."""
         try:
+            self._flush_airtest_runtime()
             self._disconnect_device()
             self.is_connected = False
-            logger.info("Airtest环境已清理")
+            logger.info("Airtest runtime cleaned up")
         except Exception as e:
-            logger.error(f"清理Airtest环境时出错: {str(e)}", exc_info=True)
-    
+            logger.error(f"Cleanup Airtest runtime failed: {str(e)}", exc_info=True)
+        finally:
+            self._restore_airtest_runtime()
+
     def _disconnect_device(self) -> None:
-        """断开与设备的连接"""
+        """Release the Airtest device reference without waking extra proxies."""
         try:
-            if G.DEVICE:
-                G.DEVICE.disconnect()
-                self.is_connected = False
-                logger.info("设备连接已断开")
+            device = getattr(G, "DEVICE", None)
+            if device:
+                adb = getattr(device, "adb", None)
+                if adb and hasattr(adb, "_cleanup_forwards"):
+                    try:
+                        adb._cleanup_forwards()
+                    except Exception as cleanup_error:
+                        logger.debug("ADB forward cleanup failed: %s", cleanup_error)
+                G.DEVICE = None
+                if hasattr(G, "DEVICE_LIST"):
+                    G.DEVICE_LIST = []
+            self.is_connected = False
+            logger.info("Device connection released")
         except NoDeviceError:
-            logger.info("没有设备连接，无需断开")
+            self.is_connected = False
+            logger.info("No active device connection")
         except Exception as e:
-            logger.error(f"断开设备连接时出错: {str(e)}", exc_info=True)
-    
+            logger.error(f"Release device connection failed: {str(e)}", exc_info=True)
+
+    def _prepare_airtest_runtime(self) -> None:
+        """Keep Airtest runtime cleanup away from pytest-managed streams."""
+        self._restore_thread_shutdown()
+        self._mute_airtest_console_logging()
+
+    def _restore_thread_shutdown(self) -> None:
+        original_shutdown = getattr(airtest_snippet, "_shutdown", None)
+        current_shutdown = getattr(threading, "_shutdown", None)
+        if original_shutdown and current_shutdown is not original_shutdown:
+            threading._shutdown = original_shutdown
+            self._airtest_shutdown_restored = True
+            logger.info("Restored Python threading shutdown handler")
+
+    def _mute_airtest_console_logging(self) -> None:
+        airtest_logger = logging.getLogger("airtest")
+        removed_handlers: list[logging.Handler] = []
+        for handler in list(airtest_logger.handlers):
+            if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
+                airtest_logger.removeHandler(handler)
+                removed_handlers.append(handler)
+
+        if removed_handlers:
+            self._airtest_console_handlers = removed_handlers
+            logger.info("Muted Airtest console log handlers: %s", len(removed_handlers))
+
+    def _flush_airtest_runtime(self) -> None:
+        try:
+            if getattr(G, "LOGGER", None):
+                G.LOGGER.handle_stacked_log()
+                G.LOGGER.set_logfile(None)
+        except Exception as error:
+            logger.debug("Flush Airtest runtime failed: %s", error)
+
+    def _restore_airtest_runtime(self) -> None:
+        # Keep Airtest console handlers muted for the rest of the pytest worker
+        # lifetime so late cleanup hooks cannot write into closed capture streams.
+        self._airtest_console_handlers = []
+
     def is_device_connected(self) -> bool:
         """
         检查设备是否已连接
@@ -286,6 +345,54 @@ class AirtestBase:
             logger.error(f"关闭应用失败: {str(e)}", exc_info=True)
             return False
     
+    def shell(self, command: str) -> str:
+        """鎵ц shell 鍛戒护骞惰繑鍥炶緭鍑恒€?"""
+        if not self.is_connected or not getattr(G, "DEVICE", None):
+            raise RuntimeError("璁惧鏈繛鎺ワ紝鏃犳硶鎵ц shell 鍛戒护")
+        return G.DEVICE.shell(command)
+
+    def clear_app_data(self, package_name: str) -> bool:
+        """娓呯悊搴旂敤鏁版嵁锛岀‘淇濅粠骞插噣鐘舵€佸紑濮嬫墽琛屻€?"""
+        if not self.is_connected:
+            logger.warning("璁惧鏈繛鎺ワ紝鏃犳硶娓呯悊搴旂敤鏁版嵁")
+            return False
+
+        try:
+            logger.info(f"灏濊瘯娓呯悊搴旂敤鏁版嵁: {package_name}")
+            try:
+                self.close_app(package_name)
+            except Exception:
+                logger.debug("鍏抽棴搴旂敤澶辫触锛岀户缁墽琛?pm clear")
+
+            result = self.shell(f"pm clear {package_name}")
+            success = "Success" in str(result)
+            if success:
+                logger.info(f"搴旂敤鏁版嵁娓呯悊鎴愬姛: {package_name}")
+            else:
+                logger.warning(f"搴旂敤鏁版嵁娓呯悊杩斿洖寮傚父: {result}")
+            return success
+        except Exception as e:
+            logger.error(f"娓呯悊搴旂敤鏁版嵁澶辫触: {str(e)}", exc_info=True)
+            return False
+
+    def dump_ui_xml(self) -> str:
+        """Return the current UI hierarchy XML."""
+        return dump_current_ui_xml(self.shell)
+
+    def _tap_node_by_selector(self, *, resource_id: str = "", text: str = "") -> bool:
+        return tap_selector(self.shell, self.dump_ui_xml, {"resource_id": resource_id, "text": text})
+
+    def handle_startup_permission_dialogs(self, timeout: float = 8.0, interval: float = 0.6) -> bool:
+        """Handle common startup permission/privacy dialogs."""
+        handled_count = handle_dialogs(
+            shell=self.shell,
+            dump_xml=self.dump_ui_xml,
+            selectors=STARTUP_DIALOG_SELECTORS,
+            timeout=timeout,
+            interval=interval,
+        )
+        return handled_count > 0
+
     def is_app_installed(self, package_name: str) -> bool:
         """
         检查指定包名的应用是否已安装

@@ -1,21 +1,21 @@
 <template>
   <div class="prompt-config">
     <div class="page-header">
-      <h1>{{ $t('promptConfig.title') }}</h1>
-      <p>{{ $t('promptConfig.subtitle') }}</p>
+      <h1>{{ pageTitle }}</h1>
+      <p>{{ pageSubtitle }}</p>
     </div>
 
     <div class="main-content">
       <!-- 配置列表 -->
       <div class="configs-section">
         <div class="section-header">
-          <h2>{{ $t('promptConfig.configListTitle') }}</h2>
+          <h2>{{ $t("promptConfig.configListTitle") }}</h2>
           <div class="header-actions">
             <button class="load-defaults-btn" @click="loadDefaultPrompts">
-              {{ $t('promptConfig.loadDefaults') }}
+              {{ $t("promptConfig.loadDefaults") }}
             </button>
             <button class="add-config-btn" @click="openAddModal">
-              {{ $t('promptConfig.addConfig') }}
+              {{ $t("promptConfig.addConfig") }}
             </button>
           </div>
         </div>
@@ -27,39 +27,54 @@
                 <h3>{{ config.name }}</h3>
                 <div class="config-badges">
                   <span class="type-badge" :class="config.prompt_type">
-                    {{ config.prompt_type === 'writer' ? $t('promptConfig.writerPrompt') : $t('promptConfig.reviewerPrompt') }}
+                    {{ getPromptTypeLabel(config.prompt_type) }}
                   </span>
-                  <span class="status-badge" :class="{ active: config.is_active }">
-                    {{ config.is_active ? $t('promptConfig.enabled') : $t('promptConfig.disabled') }}
+                  <span
+                    class="status-badge"
+                    :class="{ active: config.is_active }"
+                  >
+                    {{
+                      config.is_active
+                        ? $t("promptConfig.enabled")
+                        : $t("promptConfig.disabled")
+                    }}
                   </span>
                 </div>
               </div>
               <div class="config-actions">
-                <button class="preview-btn" @click="previewPrompt(config)">{{ $t('promptConfig.preview') }}</button>
-                <button class="edit-btn" @click="editConfig(config)">{{ $t('promptConfig.edit') }}</button>
-                <button class="delete-btn" @click="deleteConfig(config.id)">{{ $t('promptConfig.delete') }}</button>
+                <button class="preview-btn" @click="previewPrompt(config)">
+                  {{ $t("promptConfig.preview") }}
+                </button>
+                <button class="edit-btn" @click="editConfig(config)">
+                  {{ $t("promptConfig.edit") }}
+                </button>
+                <button class="delete-btn" @click="deleteConfig(config.id)">
+                  {{ $t("promptConfig.delete") }}
+                </button>
               </div>
             </div>
 
             <div class="config-details">
               <div class="prompt-preview">
-                <label>{{ $t('promptConfig.contentPreview') }}</label>
+                <label>{{ $t("promptConfig.contentPreview") }}</label>
                 <div class="content-preview">
                   {{ truncateContent(config.content, 200) }}
                 </div>
               </div>
               <div class="config-meta">
                 <div class="meta-item">
-                  <label>{{ $t('promptConfig.createdAt') }}</label>
+                  <label>{{ $t("promptConfig.createdAt") }}</label>
                   <span>{{ formatDateTime(config.created_at) }}</span>
                 </div>
                 <div class="meta-item">
-                  <label>{{ $t('promptConfig.updatedAt') }}</label>
+                  <label>{{ $t("promptConfig.updatedAt") }}</label>
                   <span>{{ formatDateTime(config.updated_at) }}</span>
                 </div>
                 <div class="meta-item">
-                  <label>{{ $t('promptConfig.createdBy') }}</label>
-                  <span>{{ config.created_by_name || $t('promptConfig.unknown') }}</span>
+                  <label>{{ $t("promptConfig.createdBy") }}</label>
+                  <span>{{
+                    config.created_by_name || $t("promptConfig.unknown")
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -68,14 +83,14 @@
 
         <div v-if="configs.length === 0" class="empty-state">
           <div class="empty-icon">📝</div>
-          <h3>{{ $t('promptConfig.noConfigs') }}</h3>
-          <p>{{ $t('promptConfig.emptyHint') }}</p>
+          <h3>{{ $t("promptConfig.noConfigs") }}</h3>
+          <p>{{ $t("promptConfig.emptyHint") }}</p>
           <div class="empty-actions">
             <button class="add-first-config-btn" @click="openAddModal">
-              {{ $t('promptConfig.addFirstConfig') }}
+              {{ $t("promptConfig.addFirstConfig") }}
             </button>
             <button class="load-defaults-first-btn" @click="loadDefaultPrompts">
-              {{ $t('promptConfig.loadDefaults') }}
+              {{ $t("promptConfig.loadDefaults") }}
             </button>
           </div>
         </div>
@@ -86,73 +101,106 @@
     <div v-if="showAddModal || showEditModal" class="config-modal">
       <div class="modal-content large" @click.stop>
         <div class="modal-header">
-          <h3>{{ isEditing ? $t('promptConfig.editConfig') : $t('promptConfig.addConfig') }}</h3>
+          <h3>
+            {{
+              isEditing
+                ? $t("promptConfig.editConfig")
+                : $t("promptConfig.addConfig")
+            }}
+          </h3>
           <button class="close-btn" @click="closeModals">×</button>
         </div>
         <div class="modal-body">
           <form @submit.prevent="saveConfig">
             <div class="form-group">
-              <label>{{ $t('promptConfig.configName') }} <span class="required">*</span></label>
+              <label
+                >{{ $t("promptConfig.configName") }}
+                <span class="required">*</span></label
+              >
               <input
                 v-model="configForm.name"
                 type="text"
                 class="form-input"
                 :placeholder="$t('promptConfig.configNamePlaceholder')"
-                required>
+                required
+              />
             </div>
 
             <div class="form-group">
-              <label>{{ $t('promptConfig.promptType') }} <span class="required">*</span></label>
-              <select v-model="configForm.prompt_type" class="form-select" required>
-                <option value="">{{ $t('promptConfig.selectPromptType') }}</option>
-                <option value="writer">{{ $t('promptConfig.writerPrompt') }}</option>
-                <option value="reviewer">{{ $t('promptConfig.reviewerPrompt') }}</option>
+              <label
+                >{{ $t("promptConfig.promptType") }}
+                <span class="required">*</span></label
+              >
+              <select
+                v-model="configForm.prompt_type"
+                class="form-select"
+                required
+              >
+                <option value="">
+                  {{ $t("promptConfig.selectPromptType") }}
+                </option>
+                <option
+                  v-for="type in promptTypeOptions"
+                  :key="type.value"
+                  :value="type.value"
+                >
+                  {{ type.label }}
+                </option>
               </select>
             </div>
 
             <div class="form-group">
-              <label>{{ $t('promptConfig.promptContent') }} <span class="required">*</span></label>
+              <label
+                >{{ $t("promptConfig.promptContent") }}
+                <span class="required">*</span></label
+              >
               <div class="textarea-container">
                 <textarea
                   v-model="configForm.content"
                   class="form-textarea large"
                   rows="20"
                   :placeholder="$t('promptConfig.contentPlaceholder')"
-                  required></textarea>
-                <div class="char-count">{{ $t('promptConfig.charCount', { count: configForm.content.length }) }}</div>
+                  required
+                ></textarea>
+                <div class="char-count">
+                  {{
+                    $t("promptConfig.charCount", {
+                      count: configForm.content.length,
+                    })
+                  }}
+                </div>
               </div>
               <div class="textarea-tips">
-                <p><strong>{{ $t('promptConfig.writingTipsTitle') }}</strong></p>
+                <p>
+                  <strong>{{ $t("promptConfig.writingTipsTitle") }}</strong>
+                </p>
                 <ul>
-                  <li>{{ $t('promptConfig.tip1') }}</li>
-                  <li>{{ $t('promptConfig.tip2') }}</li>
-                  <li>{{ $t('promptConfig.tip3') }}</li>
-                  <li>{{ $t('promptConfig.tip4') }}</li>
+                  <li>{{ $t("promptConfig.tip1") }}</li>
+                  <li>{{ $t("promptConfig.tip2") }}</li>
+                  <li>{{ $t("promptConfig.tip3") }}</li>
+                  <li>{{ $t("promptConfig.tip4") }}</li>
                 </ul>
               </div>
             </div>
 
             <div class="form-group">
               <label class="checkbox-label">
-                <input
-                  v-model="configForm.is_active"
-                  type="checkbox">
+                <input v-model="configForm.is_active" type="checkbox" />
                 <span class="checkmark"></span>
-                {{ $t('promptConfig.enableConfig') }}
+                {{ $t("promptConfig.enableConfig") }}
               </label>
               <div class="checkbox-hint">
-                {{ $t('promptConfig.enableHint') }}
+                {{ $t("promptConfig.enableHint") }}
               </div>
             </div>
 
             <div class="modal-actions">
-              <button type="button" class="cancel-btn" @click="closeModals">{{ $t('promptConfig.cancel') }}</button>
-              <button
-                type="submit"
-                class="confirm-btn"
-                :disabled="isSaving">
-                <span v-if="isSaving">{{ $t('promptConfig.saving') }}</span>
-                <span v-else>{{ $t('promptConfig.saveConfig') }}</span>
+              <button type="button" class="cancel-btn" @click="closeModals">
+                {{ $t("promptConfig.cancel") }}
+              </button>
+              <button type="submit" class="confirm-btn" :disabled="isSaving">
+                <span v-if="isSaving">{{ $t("promptConfig.saving") }}</span>
+                <span v-else>{{ $t("promptConfig.saveConfig") }}</span>
               </button>
             </div>
           </form>
@@ -164,27 +212,36 @@
     <div v-if="showPreviewModal" class="preview-modal" @click="closePreview">
       <div class="modal-content large" @click.stop>
         <div class="modal-header">
-          <h3>{{ $t('promptConfig.previewTitle', { name: previewConfig.name }) }}</h3>
+          <h3>
+            {{ $t("promptConfig.previewTitle", { name: previewConfig.name }) }}
+          </h3>
           <button class="close-btn" @click="closePreview">×</button>
         </div>
         <div class="modal-body">
           <div class="preview-content">
             <div class="preview-meta">
               <div class="meta-item">
-                <label>{{ $t('promptConfig.type') }}</label>
+                <label>{{ $t("promptConfig.type") }}</label>
                 <span class="type-badge" :class="previewConfig.prompt_type">
-                  {{ previewConfig.prompt_type === 'writer' ? $t('promptConfig.writerPrompt') : $t('promptConfig.reviewerPrompt') }}
+                  {{ getPromptTypeLabel(previewConfig.prompt_type) }}
                 </span>
               </div>
               <div class="meta-item">
-                <label>{{ $t('promptConfig.status') }}</label>
-                <span class="status-badge" :class="{ active: previewConfig.is_active }">
-                  {{ previewConfig.is_active ? $t('promptConfig.enabled') : $t('promptConfig.disabled') }}
+                <label>{{ $t("promptConfig.status") }}</label>
+                <span
+                  class="status-badge"
+                  :class="{ active: previewConfig.is_active }"
+                >
+                  {{
+                    previewConfig.is_active
+                      ? $t("promptConfig.enabled")
+                      : $t("promptConfig.disabled")
+                  }}
                 </span>
               </div>
             </div>
             <div class="content-display">
-              <label>{{ $t('promptConfig.promptContent') }}</label>
+              <label>{{ $t("promptConfig.promptContent") }}</label>
               <div class="content-text">{{ previewConfig.content }}</div>
             </div>
           </div>
@@ -193,44 +250,54 @@
     </div>
 
     <!-- 默认提示词预览弹窗 -->
-    <div v-if="showDefaultsModal" class="defaults-modal" @click="closeDefaultsModal">
+    <div
+      v-if="showDefaultsModal"
+      class="defaults-modal"
+      @click="closeDefaultsModal"
+    >
       <div class="modal-content large" @click.stop>
         <div class="modal-header">
-          <h3>{{ $t('promptConfig.defaultPromptsPreview') }}</h3>
+          <h3>{{ $t("promptConfig.defaultPromptsPreview") }}</h3>
           <button class="close-btn" @click="closeDefaultsModal">×</button>
         </div>
         <div class="modal-body">
           <div class="defaults-content">
             <div class="tabs">
               <button
+                v-for="type in promptTypeOptions"
+                :key="type.value"
                 class="tab-btn"
-                :class="{ active: activeTab === 'writer' }"
-                @click="activeTab = 'writer'">
-                {{ $t('promptConfig.writerTab') }}
-              </button>
-              <button
-                class="tab-btn"
-                :class="{ active: activeTab === 'reviewer' }"
-                @click="activeTab = 'reviewer'">
-                {{ $t('promptConfig.reviewerTab') }}
+                :class="{ active: activeTab === type.value }"
+                @click="activeTab = type.value"
+              >
+                {{ type.label }}
               </button>
             </div>
 
             <div class="tab-content">
               <div class="content-display">
-                <div class="content-text">{{ defaultPrompts[activeTab] || $t('promptConfig.noContent') }}</div>
+                <div class="content-text">
+                  {{
+                    defaultPrompts[activeTab] || $t("promptConfig.noContent")
+                  }}
+                </div>
               </div>
             </div>
           </div>
 
           <div class="modal-actions">
-            <button class="cancel-btn" @click="closeDefaultsModal">{{ $t('promptConfig.cancel') }}</button>
+            <button class="cancel-btn" @click="closeDefaultsModal">
+              {{ $t("promptConfig.cancel") }}
+            </button>
             <button
               class="confirm-btn"
               @click="confirmLoadDefaults"
-              :disabled="isLoadingDefaults">
-              <span v-if="isLoadingDefaults">{{ $t('promptConfig.loading') }}</span>
-              <span v-else>{{ $t('promptConfig.confirmLoad') }}</span>
+              :disabled="isLoadingDefaults"
+            >
+              <span v-if="isLoadingDefaults">{{
+                $t("promptConfig.loading")
+              }}</span>
+              <span v-else>{{ $t("promptConfig.confirmLoad") }}</span>
             </button>
           </div>
         </div>
@@ -240,11 +307,22 @@
 </template>
 
 <script>
-import api from '@/utils/api'
-import { ElMessage } from 'element-plus'
+import api from "@/utils/api";
+import { ElMessage } from "element-plus";
+
+const APP_EXPLORATION_DEFAULT_PROMPT = `你是 QAFlow 的 APP AI 探索分析助手。
+
+你的目标是帮助测试人员从探索执行报告中识别值得复核的问题、误报原因和下一轮探索方向。
+
+分析原则：
+1. 不要把“页面无明显跳转”直接判定为缺陷，开关、筛选、折叠、展开等状态变化可以是正常业务行为。
+2. 只有出现崩溃、白屏、卡死、关键流程阻断、明显错误提示、核心数据丢失时，才优先归为高风险问题。
+3. 对不确定现象要标记为“需要人工复核”，并说明需要查看的截图、日志或页面状态。
+4. 建议动作只允许低风险导航动作，例如点击可见文本、返回、等待、滑动；不要建议支付、删除、注销、解绑、退出登录等危险动作。
+5. 输出要面向测试同学，结论简洁，原因可追溯，避免空泛评价。`;
 
 export default {
-  name: 'PromptConfig',
+  name: "PromptConfig",
   data() {
     return {
       configs: [],
@@ -258,283 +336,408 @@ export default {
       editingConfigId: null,
       previewConfig: {},
       defaultPrompts: {
-        writer: '',
-        reviewer: ''
+        writer: "",
+        reviewer: "",
+        app_exploration: "",
       },
-      activeTab: 'writer',
+      activeTab: "writer",
       configForm: {
-        name: '',
-        prompt_type: '',
-        content: '',
-        is_active: true
+        name: "",
+        prompt_type: "",
+        content: "",
+        is_active: true,
+      },
+    };
+  },
+
+  computed: {
+    isAppExplorationScope() {
+      return this.$route.meta?.promptScope === "app_exploration";
+    },
+
+    pageTitle() {
+      return this.isAppExplorationScope
+        ? "APP AI 探索提示词配置"
+        : this.$t("promptConfig.title");
+    },
+
+    pageSubtitle() {
+      return this.isAppExplorationScope
+        ? "维护探索报告分析、误报判断、复核建议和下一轮探索方向的提示词"
+        : this.$t("promptConfig.subtitle");
+    },
+
+    promptTypeOptions() {
+      if (this.isAppExplorationScope) {
+        return [{ value: "app_exploration", label: "APP AI 探索分析提示词" }];
       }
-    }
+
+      return [
+        { value: "writer", label: this.$t("promptConfig.writerPrompt") },
+        { value: "reviewer", label: this.$t("promptConfig.reviewerPrompt") },
+      ];
+    },
   },
 
   mounted() {
-    this.loadConfigs()
+    this.loadConfigs();
+  },
+
+  watch: {
+    "$route.meta.promptScope"() {
+      this.closeModals();
+      this.closePreview();
+      this.closeDefaultsModal();
+      this.loadConfigs();
+    },
   },
 
   methods: {
     getPromptTypeLabel(promptType) {
-      return promptType === 'writer' ? this.$t('promptConfig.writerPrompt') : this.$t('promptConfig.reviewerPrompt')
+      const option = this.promptTypeOptions.find(
+        (type) => type.value === promptType,
+      );
+      if (option) return option.label;
+      if (promptType === "app_exploration") return "APP AI 探索分析提示词";
+      return promptType === "writer"
+        ? this.$t("promptConfig.writerPrompt")
+        : this.$t("promptConfig.reviewerPrompt");
     },
 
     getExistingPromptConfig(promptType, excludeId = null) {
-      return this.configs.find(config => config.prompt_type === promptType && config.id !== excludeId)
+      return this.configs.find(
+        (config) =>
+          config.prompt_type === promptType && config.id !== excludeId,
+      );
     },
 
     getMissingPromptTypes() {
-      return ['writer', 'reviewer'].filter(type => !this.getExistingPromptConfig(type))
+      return this.promptTypeOptions
+        .map((type) => type.value)
+        .filter((type) => !this.getExistingPromptConfig(type));
     },
 
     formatApiError(error, fallbackText) {
-      const data = error?.response?.data
+      const data = error?.response?.data;
       if (!data) {
-        return error?.message || fallbackText
+        return error?.message || fallbackText;
       }
 
-      if (typeof data.error === 'string') {
-        return data.error
+      if (typeof data.error === "string") {
+        return data.error;
       }
 
       if (Array.isArray(data.error) && data.error.length > 0) {
-        return data.error.join(', ')
+        return data.error.join(", ");
       }
 
       if (Array.isArray(data.prompt_type) && data.prompt_type.length > 0) {
-        return data.prompt_type.join(', ')
+        return data.prompt_type.join(", ");
       }
 
-      if (typeof data.prompt_type === 'string') {
-        return data.prompt_type
+      if (typeof data.prompt_type === "string") {
+        return data.prompt_type;
       }
 
-      return Object.keys(data)
-        .map(key => Array.isArray(data[key]) ? data[key].join(', ') : data[key])
-        .join('; ') || fallbackText
+      return (
+        Object.keys(data)
+          .map((key) =>
+            Array.isArray(data[key]) ? data[key].join(", ") : data[key],
+          )
+          .join("; ") || fallbackText
+      );
     },
 
     openAddModal() {
-      console.log('openAddModal clicked')
-      this.resetForm()
-      this.isEditing = false
-      this.showAddModal = true
-      console.log('showAddModal set to:', this.showAddModal)
+      console.log("openAddModal clicked");
+      this.resetForm();
+      if (this.isAppExplorationScope) {
+        this.configForm.name = "APP AI 探索分析提示词";
+        this.configForm.prompt_type = "app_exploration";
+      }
+      this.isEditing = false;
+      this.showAddModal = true;
+      console.log("showAddModal set to:", this.showAddModal);
     },
 
     async loadConfigs() {
       try {
-        console.log('Loading prompt configs...')
-        const response = await api.get('/requirement-analysis/prompts/')
-        console.log('Prompts API response:', response.data)
-        
+        console.log("Loading prompt configs...");
+        const response = await api.get("/requirement-analysis/prompts/", {
+          params: this.isAppExplorationScope
+            ? { prompt_type: "app_exploration" }
+            : {},
+        });
+        console.log("Prompts API response:", response.data);
+
         // 处理分页API响应格式
-        if (response.data && response.data.results && Array.isArray(response.data.results)) {
-          this.configs = response.data.results
-          console.log('Loaded configs from results:', this.configs)
+        if (
+          response.data &&
+          response.data.results &&
+          Array.isArray(response.data.results)
+        ) {
+          this.configs = response.data.results;
+          console.log("Loaded configs from results:", this.configs);
         } else if (response.data && Array.isArray(response.data)) {
           // 直接数组格式的fallback
-          this.configs = response.data
-          console.log('Loaded configs from direct array:', this.configs)
+          this.configs = response.data;
+          console.log("Loaded configs from direct array:", this.configs);
         } else {
-          console.warn('Unexpected API response format:', response.data)
-          this.configs = []
+          console.warn("Unexpected API response format:", response.data);
+          this.configs = [];
         }
-        
-        console.log('Final configs count:', this.configs.length)
+
+        console.log("Final configs count:", this.configs.length);
       } catch (error) {
-        console.error(this.$t('promptConfig.loadConfigsFailed'), error)
-        this.configs = [] // 确保configs始终是数组
+        console.error(this.$t("promptConfig.loadConfigsFailed"), error);
+        this.configs = []; // 确保configs始终是数组
 
         if (error.response?.status === 401) {
-          ElMessage.error(this.$t('promptConfig.pleaseLogin'))
+          ElMessage.error(this.$t("promptConfig.pleaseLogin"));
         } else {
-          ElMessage.error(this.$t('promptConfig.loadConfigsFailed') + ': ' + (error.response?.data?.error || error.message))
+          ElMessage.error(
+            this.$t("promptConfig.loadConfigsFailed") +
+              ": " +
+              (error.response?.data?.error || error.message),
+          );
         }
       }
     },
 
     async loadDefaultPrompts() {
-      console.log('loadDefaultPrompts clicked')
-      const missingTypes = this.getMissingPromptTypes()
+      console.log("loadDefaultPrompts clicked");
+      const missingTypes = this.getMissingPromptTypes();
 
       if (missingTypes.length === 0) {
-        const existingTypes = ['writer', 'reviewer'].map(type => this.getPromptTypeLabel(type))
-        ElMessage.warning(this.$t('promptConfig.promptExists', { types: existingTypes.join('、') }))
-        return
+        const existingTypes = this.promptTypeOptions.map((type) => type.label);
+        ElMessage.warning(
+          this.$t("promptConfig.promptExists", {
+            types: existingTypes.join("、"),
+          }),
+        );
+        return;
+      }
+
+      if (this.isAppExplorationScope) {
+        this.defaultPrompts = {
+          app_exploration: APP_EXPLORATION_DEFAULT_PROMPT,
+        };
+        this.activeTab = "app_exploration";
+        this.showDefaultsModal = true;
+        return;
       }
 
       try {
-        const response = await api.get('/requirement-analysis/prompts/load_defaults/')
-        console.log('Default prompts response:', response.data)
-        this.defaultPrompts = response.data.defaults
-        this.showDefaultsModal = true
-        console.log('showDefaultsModal set to:', this.showDefaultsModal)
+        const response = await api.get(
+          "/requirement-analysis/prompts/load_defaults/",
+        );
+        console.log("Default prompts response:", response.data);
+        this.defaultPrompts = response.data.defaults;
+        this.showDefaultsModal = true;
+        console.log("showDefaultsModal set to:", this.showDefaultsModal);
       } catch (error) {
-        console.error(this.$t('promptConfig.loadDefaultsFailed'), error)
-        ElMessage.error(this.$t('promptConfig.loadDefaultsFailed') + ': ' + (error.response?.data?.error || error.message))
+        console.error(this.$t("promptConfig.loadDefaultsFailed"), error);
+        ElMessage.error(
+          this.$t("promptConfig.loadDefaultsFailed") +
+            ": " +
+            (error.response?.data?.error || error.message),
+        );
       }
     },
 
     async confirmLoadDefaults() {
-      this.isLoadingDefaults = true
-      
+      this.isLoadingDefaults = true;
+
       try {
-        const missingTypes = this.getMissingPromptTypes()
+        const missingTypes = this.getMissingPromptTypes();
 
         if (missingTypes.length === 0) {
-          const existingTypes = ['writer', 'reviewer'].map(type => this.getPromptTypeLabel(type))
-          ElMessage.warning(this.$t('promptConfig.promptExists', { types: existingTypes.join('、') }))
-          return
+          const existingTypes = this.promptTypeOptions.map(
+            (type) => type.label,
+          );
+          ElMessage.warning(
+            this.$t("promptConfig.promptExists", {
+              types: existingTypes.join("、"),
+            }),
+          );
+          return;
         }
 
         // 创建编写提示词配置
-        if (missingTypes.includes('writer') && this.defaultPrompts.writer) {
-          await api.post('/requirement-analysis/prompts/', {
-            name: this.$t('promptConfig.defaultWriterName'),
-            prompt_type: 'writer',
+        if (
+          missingTypes.includes("app_exploration") &&
+          this.defaultPrompts.app_exploration
+        ) {
+          await api.post("/requirement-analysis/prompts/", {
+            name: "APP AI 探索分析提示词",
+            prompt_type: "app_exploration",
+            content: this.defaultPrompts.app_exploration,
+            is_active: true,
+          });
+        }
+
+        if (missingTypes.includes("writer") && this.defaultPrompts.writer) {
+          await api.post("/requirement-analysis/prompts/", {
+            name: this.$t("promptConfig.defaultWriterName"),
+            prompt_type: "writer",
             content: this.defaultPrompts.writer,
-            is_active: true
-          })
+            is_active: true,
+          });
         }
 
         // 创建评审提示词配置
-        if (missingTypes.includes('reviewer') && this.defaultPrompts.reviewer) {
-          await api.post('/requirement-analysis/prompts/', {
-            name: this.$t('promptConfig.defaultReviewerName'),
-            prompt_type: 'reviewer',
+        if (missingTypes.includes("reviewer") && this.defaultPrompts.reviewer) {
+          await api.post("/requirement-analysis/prompts/", {
+            name: this.$t("promptConfig.defaultReviewerName"),
+            prompt_type: "reviewer",
             content: this.defaultPrompts.reviewer,
-            is_active: true
-          })
+            is_active: true,
+          });
         }
 
-        ElMessage.success(this.$t('promptConfig.defaultsLoadSuccess'))
-        this.closeDefaultsModal()
-        this.loadConfigs()
+        ElMessage.success(this.$t("promptConfig.defaultsLoadSuccess"));
+        this.closeDefaultsModal();
+        this.loadConfigs();
       } catch (error) {
-        console.error(this.$t('promptConfig.loadDefaultsFailed'), error)
-        ElMessage.error(this.$t('promptConfig.loadFailed') + ': ' + this.formatApiError(error, this.$t('promptConfig.loadFailed')))
-      } finally{
-        this.isLoadingDefaults = false
+        console.error(this.$t("promptConfig.loadDefaultsFailed"), error);
+        ElMessage.error(
+          this.$t("promptConfig.loadFailed") +
+            ": " +
+            this.formatApiError(error, this.$t("promptConfig.loadFailed")),
+        );
+      } finally {
+        this.isLoadingDefaults = false;
       }
     },
 
     resetForm() {
       this.configForm = {
-        name: '',
-        prompt_type: '',
-        content: '',
-        is_active: true
-      }
+        name: "",
+        prompt_type: "",
+        content: "",
+        is_active: true,
+      };
     },
 
     editConfig(config) {
-      this.isEditing = true
-      this.editingConfigId = config.id
+      this.isEditing = true;
+      this.editingConfigId = config.id;
       this.configForm = {
         name: config.name,
         prompt_type: config.prompt_type,
         content: config.content,
-        is_active: config.is_active
-      }
-      this.showEditModal = true
+        is_active: config.is_active,
+      };
+      this.showEditModal = true;
     },
 
     previewPrompt(config) {
-      this.previewConfig = config
-      this.showPreviewModal = true
+      this.previewConfig = config;
+      this.showPreviewModal = true;
     },
 
     async saveConfig() {
-      this.isSaving = true
-      
+      this.isSaving = true;
+
       try {
         const existingConfig = this.getExistingPromptConfig(
           this.configForm.prompt_type,
-          this.isEditing ? this.editingConfigId : null
-        )
+          this.isEditing ? this.editingConfigId : null,
+        );
 
         if (existingConfig) {
           ElMessage.warning(
-            this.$t('promptConfig.promptTypeExists', {
-              type: this.getPromptTypeLabel(this.configForm.prompt_type)
-            })
-          )
-          return
+            this.$t("promptConfig.promptTypeExists", {
+              type: this.getPromptTypeLabel(this.configForm.prompt_type),
+            }),
+          );
+          return;
         }
 
         if (this.isEditing) {
-          await api.patch(`/requirement-analysis/prompts/${this.editingConfigId}/`, this.configForm)
-          ElMessage.success(this.$t('promptConfig.updateSuccess'))
+          await api.patch(
+            `/requirement-analysis/prompts/${this.editingConfigId}/`,
+            this.configForm,
+          );
+          ElMessage.success(this.$t("promptConfig.updateSuccess"));
         } else {
-          await api.post('/requirement-analysis/prompts/', this.configForm)
-          ElMessage.success(this.$t('promptConfig.addSuccess'))
+          await api.post("/requirement-analysis/prompts/", this.configForm);
+          ElMessage.success(this.$t("promptConfig.addSuccess"));
         }
 
-        this.closeModals()
-        this.loadConfigs()
+        this.closeModals();
+        this.loadConfigs();
       } catch (error) {
-        console.error(this.$t('promptConfig.saveConfigFailed'), error)
-        ElMessage.error(this.$t('promptConfig.saveFailed') + ': ' + this.formatApiError(error, this.$t('promptConfig.saveFailed')))
+        console.error(this.$t("promptConfig.saveConfigFailed"), error);
+        ElMessage.error(
+          this.$t("promptConfig.saveFailed") +
+            ": " +
+            this.formatApiError(error, this.$t("promptConfig.saveFailed")),
+        );
       } finally {
-        this.isSaving = false
+        this.isSaving = false;
       }
     },
 
     async deleteConfig(configId) {
-      if (!confirm(this.$t('promptConfig.deleteConfirm'))) {
-        return
+      if (!confirm(this.$t("promptConfig.deleteConfirm"))) {
+        return;
       }
 
       try {
-        await api.delete(`/requirement-analysis/prompts/${configId}/`)
-        ElMessage.success(this.$t('promptConfig.deleteSuccess'))
-        this.loadConfigs()
+        await api.delete(`/requirement-analysis/prompts/${configId}/`);
+        ElMessage.success(this.$t("promptConfig.deleteSuccess"));
+        this.loadConfigs();
       } catch (error) {
-        console.error(this.$t('promptConfig.deleteConfigFailed'), error)
-        ElMessage.error(this.$t('promptConfig.deleteFailed') + ': ' + (error.response?.data?.error || error.message))
+        console.error(this.$t("promptConfig.deleteConfigFailed"), error);
+        ElMessage.error(
+          this.$t("promptConfig.deleteFailed") +
+            ": " +
+            (error.response?.data?.error || error.message),
+        );
       }
     },
 
     closeModals() {
-      this.showAddModal = false
-      this.showEditModal = false
-      this.isEditing = false
-      this.editingConfigId = null
-      this.resetForm()
+      this.showAddModal = false;
+      this.showEditModal = false;
+      this.isEditing = false;
+      this.editingConfigId = null;
+      this.resetForm();
     },
 
     closePreview() {
-      this.showPreviewModal = false
-      this.previewConfig = {}
+      this.showPreviewModal = false;
+      this.previewConfig = {};
     },
 
     closeDefaultsModal() {
-      this.showDefaultsModal = false
-      this.defaultPrompts = { writer: '', reviewer: '' }
-      this.activeTab = 'writer'
+      this.showDefaultsModal = false;
+      this.defaultPrompts = { writer: "", reviewer: "", app_exploration: "" };
+      this.activeTab = this.isAppExplorationScope
+        ? "app_exploration"
+        : "writer";
     },
 
     truncateContent(content, maxLength) {
-      if (!content) return ''
-      if (content.length <= maxLength) return content
-      return content.substring(0, maxLength) + '...'
+      if (!content) return "";
+      if (content.length <= maxLength) return content;
+      return content.substring(0, maxLength) + "...";
     },
 
     formatDateTime(dateString) {
-      if (!dateString) return ''
-      const date = new Date(dateString)
-      return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    }
-  }
-}
+      if (!dateString) return "";
+      const date = new Date(dateString);
+      return date.toLocaleString("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    },
+  },
+};
 </script>
 
 <style scoped>
@@ -621,7 +824,9 @@ export default {
   padding: 24px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   border: 1px solid #e1e8ed;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .config-card:hover {
@@ -648,7 +853,8 @@ export default {
   flex-wrap: wrap;
 }
 
-.type-badge, .status-badge {
+.type-badge,
+.status-badge {
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 0.8rem;
@@ -681,7 +887,9 @@ export default {
   flex-wrap: wrap;
 }
 
-.preview-btn, .edit-btn, .delete-btn {
+.preview-btn,
+.edit-btn,
+.delete-btn {
   padding: 6px 12px;
   border: none;
   border-radius: 6px;
@@ -790,7 +998,8 @@ export default {
   flex-wrap: wrap;
 }
 
-.add-first-config-btn, .load-defaults-first-btn {
+.add-first-config-btn,
+.load-defaults-first-btn {
   background: #3498db;
   color: white;
   border: none;
@@ -813,7 +1022,9 @@ export default {
   background: #8e44ad;
 }
 
-.config-modal, .preview-modal, .defaults-modal {
+.config-modal,
+.preview-modal,
+.defaults-modal {
   position: fixed;
   top: 0;
   left: 0;
@@ -876,7 +1087,8 @@ export default {
   color: #2c3e50;
 }
 
-.form-input, .form-select {
+.form-input,
+.form-select {
   width: 100%;
   padding: 12px;
   border: 1px solid #ddd;
@@ -885,7 +1097,8 @@ export default {
   transition: border-color 0.3s ease;
 }
 
-.form-input:focus, .form-select:focus {
+.form-input:focus,
+.form-select:focus {
   outline: none;
   border-color: #3498db;
   box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
@@ -901,7 +1114,7 @@ export default {
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 1rem;
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-family: "Monaco", "Menlo", "Consolas", monospace;
   resize: vertical;
   min-height: 200px;
   transition: border-color 0.3s ease;
@@ -1010,7 +1223,8 @@ export default {
   cursor: not-allowed;
 }
 
-.preview-content, .defaults-content {
+.preview-content,
+.defaults-content {
   margin-bottom: 20px;
 }
 
@@ -1047,7 +1261,7 @@ export default {
   color: #2c3e50;
   line-height: 1.6;
   white-space: pre-wrap;
-  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-family: "Monaco", "Menlo", "Consolas", monospace;
   font-size: 0.9rem;
   border-left: 4px solid #3498db;
   max-height: 400px;
@@ -1086,23 +1300,23 @@ export default {
   .configs-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .config-header {
     flex-direction: column;
     gap: 15px;
     align-items: flex-start;
   }
-  
+
   .header-actions {
     flex-direction: column;
     width: 100%;
   }
-  
+
   .empty-actions {
     flex-direction: column;
     align-items: center;
   }
-  
+
   .preview-meta {
     flex-direction: column;
     gap: 10px;

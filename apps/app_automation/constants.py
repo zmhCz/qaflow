@@ -37,3 +37,4 @@ class ElementType:
     IMAGE = 'image'      # 图片元素
     POS = 'pos'          # 坐标元素
     REGION = 'region'    # 区域元素
+    SELECTOR = 'selector'  # 定位元素（resource-id / text / class 等）

@@ -1,12 +1,13 @@
 {
-  "name": "testhub-frontend",
+  "name": "qaflow-frontend",
   "version": "1.0.1",
-  "description": "TestHub前端应用",
+  "description": "QAFlow前端应用",
   "license": "GPL-3.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test:exploration": "node scripts/selftest-exploration-next-round.mjs",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
   },
   "dependencies": {

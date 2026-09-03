@@ -6,6 +6,7 @@ from .project_views import AppProjectViewSet
 from .config_views import AppConfigViewSet
 from .device_views import AppDeviceViewSet
 from .element_views import AppElementViewSet
+from .semantic_dictionary_views import AppSemanticDictionaryViewSet
 from .component_views import (
     AppComponentViewSet,
     AppCustomComponentViewSet,
@@ -13,9 +14,13 @@ from .component_views import (
 )
 from .test_case_views import (
     AppPackageViewSet,
+    AppTestCaseFolderViewSet,
+    AppTestCaseTagViewSet,
     AppTestCaseViewSet,
 )
 from .execution_views import AppTestExecutionViewSet
+from .exploration_views import AppExplorationTaskViewSet
+from .page_map_views import AppPageMapViewSet
 from .suite_views import AppTestSuiteViewSet
 from .scheduled_task_views import AppScheduledTaskViewSet, AppNotificationLogViewSet
 from .dashboard_views import AppDashboardViewSet
@@ -32,6 +37,7 @@ __all__ = [
     
     # 元素管理
     'AppElementViewSet',
+    'AppSemanticDictionaryViewSet',
     
     # 组件管理
     'AppComponentViewSet',
@@ -40,6 +46,8 @@ __all__ = [
     
     # 测试用例
     'AppPackageViewSet',
+    'AppTestCaseFolderViewSet',
+    'AppTestCaseTagViewSet',
     'AppTestCaseViewSet',
     
     # 测试套件
@@ -51,6 +59,8 @@ __all__ = [
     
     # 执行管理
     'AppTestExecutionViewSet',
+    'AppExplorationTaskViewSet',
+    'AppPageMapViewSet',
     
     # 仪表盘
     'AppDashboardViewSet',

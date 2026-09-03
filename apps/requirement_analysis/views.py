@@ -919,8 +919,8 @@ class AIModelConfigViewSet(viewsets.ModelViewSet):
         if role:
             queryset = queryset.filter(role=role)
         else:
-            # 如果没有指定角色，默认排除 AI智能模式专用模型
-            queryset = queryset.exclude(role__in=['browser_use_text', 'browser_use_vision'])
+            # 如果没有指定角色，默认只展示 AI 用例生成相关模型，避免跨模块模型混在一起。
+            queryset = queryset.filter(role__in=['writer', 'reviewer'])
 
         # 按是否启用过滤
         is_active = self.request.query_params.get('is_active')

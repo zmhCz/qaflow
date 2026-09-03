@@ -1,170 +1,192 @@
-import axios from 'axios'
-import { ElMessage } from 'element-plus'
-import { useUserStore } from '@/stores/user'
+import axios from "axios";
+import { ElMessage } from "element-plus";
+import { useUserStore } from "@/stores/user";
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: "/api",
   timeout: 30000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
-})
+});
 
-// 正在刷新的标志
-let isRefreshing = false
-// 等待刷新的请求队列
-let failedQueue = []
+let isRefreshing = false;
+let failedQueue = [];
 
-// 处理队列中的请求
 const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
+  failedQueue.forEach((prom) => {
     if (error) {
-      prom.reject(error)
+      prom.reject(error);
     } else {
-      prom.resolve(token)
+      prom.resolve(token);
     }
-  })
+  });
+  failedQueue = [];
+};
 
-  failedQueue = []
-}
+const getBusinessMessage = (error) => {
+  const data = error?.response?.data;
+  if (!data) return "";
+  const directMessage = data.detail || data.error || data.message || data.msg;
+  if (Array.isArray(directMessage)) return directMessage.join("；");
+  if (directMessage) return directMessage;
 
-// 请求拦截器
+  if (Array.isArray(data.non_field_errors)) {
+    return data.non_field_errors.join("；");
+  }
+
+  if (typeof data === "object") {
+    const firstFieldError = Object.values(data).find((value) => {
+      return Array.isArray(value) || typeof value === "string";
+    });
+    if (Array.isArray(firstFieldError)) return firstFieldError.join("；");
+    if (typeof firstFieldError === "string") return firstFieldError;
+  }
+
+  return "";
+};
+
+const resolveApiErrorMessage = (error) => {
+  if (
+    error?.code === "ECONNABORTED" ||
+    String(error?.message || "").includes("timeout")
+  ) {
+    if (error?.config?.timeoutMessage) {
+      return error.config.timeoutMessage;
+    }
+    return "请求超时：服务响应较慢，请稍后重试；如果在操作真机，建议先检查设备连接。";
+  }
+
+  if (!error?.response) {
+    return "后端服务不可用：请确认 QAFlow 后端服务已启动，或检查本机网络/代理配置。";
+  }
+
+  const status = error.response.status;
+  const businessMessage = getBusinessMessage(error);
+
+  if (status === 400)
+    return businessMessage || "请求参数有误，请检查页面输入。";
+  if (status === 401) return "登录已过期，请重新登录。";
+  if (status === 403) return businessMessage || "当前账号没有权限执行该操作。";
+  if (status === 404)
+    return businessMessage || "接口或数据不存在，请刷新页面后重试。";
+  if (status === 408)
+    return businessMessage || "操作等待超时，请检查设备状态后重试。";
+  if (status >= 500)
+    return (
+      businessMessage || "服务端异常：请稍后重试，必要时导出日志交给开发排查。"
+    );
+
+  return businessMessage || error.message || "请求失败，请稍后重试。";
+};
+
 api.interceptors.request.use(
   async (config) => {
-    const userStore = useUserStore()
+    const userStore = useUserStore();
 
-    // 检查是否是刷新token的请求
-    if (config.url === '/auth/token/refresh/') {
-      return config
+    if (config.url === "/auth/token/refresh/") {
+      return config;
     }
 
-    // 如果有access token
     if (userStore.accessToken) {
-      // 检查token是否即将过期（5分钟内）
       if (userStore.isTokenExpiringSoon && !userStore.isTokenExpired) {
-        // 如果没有正在刷新，开始刷新
         if (!isRefreshing) {
-          isRefreshing = true
-          console.log('Token即将过期，开始刷新...')
-
+          isRefreshing = true;
           try {
-            const newToken = await userStore.refreshAccessToken()
-            console.log('Token刷新成功')
-            processQueue(null, newToken)
-
-            // 更新当前请求的token
-            config.headers.Authorization = `Bearer ${newToken}`
+            const newToken = await userStore.refreshAccessToken();
+            processQueue(null, newToken);
+            config.headers.Authorization = `Bearer ${newToken}`;
           } catch (error) {
-            console.error('Token刷新失败:', error)
-            processQueue(error, null)
-            // 刷新失败会在user store中自动logout
-            return Promise.reject(error)
+            processQueue(error, null);
+            return Promise.reject(error);
           } finally {
-            isRefreshing = false
+            isRefreshing = false;
           }
         } else {
-          // 如果正在刷新，将请求加入队列
-          console.log('Token正在刷新，请求加入队列等待...')
           return new Promise((resolve, reject) => {
-            failedQueue.push({ resolve, reject })
-          }).then(token => {
-            config.headers.Authorization = `Bearer ${token}`
-            return config
-          }).catch(err => {
-            return Promise.reject(err)
+            failedQueue.push({ resolve, reject });
           })
+            .then((token) => {
+              config.headers.Authorization = `Bearer ${token}`;
+              return config;
+            })
+            .catch((err) => Promise.reject(err));
         }
       }
 
-      // 使用Bearer token格式
-      config.headers.Authorization = `Bearer ${userStore.accessToken}`
+      config.headers.Authorization = `Bearer ${userStore.accessToken}`;
     }
 
-    return config
+    return config;
   },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
+  (error) => Promise.reject(error),
+);
 
-// 响应拦截器
 api.interceptors.response.use(
-  (response) => {
-    return response
-  },
+  (response) => response,
   async (error) => {
-    const userStore = useUserStore()
-    const originalRequest = error.config
+    const userStore = useUserStore();
+    const originalRequest = error.config || {};
+    error.userMessage = resolveApiErrorMessage(error);
 
-    // 如果是401错误且不是刷新token的请求
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // 如果是logout请求失败，直接清除本地状态不再重试logout，防止死循环
-      if (originalRequest.url === '/auth/logout/') {
-        console.error('Logout请求401，直接清除本地状态')
+      if (originalRequest.url === "/auth/logout/") {
         userStore.$patch((state) => {
-          state.accessToken = ''
-          state.refreshToken = ''
-          state.user = null
-          state.tokenExpiresAt = 0
-        })
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('token_expires_at')
-        localStorage.removeItem('user')
-        window.location.href = '/login'
-        return Promise.reject(error)
+          state.accessToken = "";
+          state.refreshToken = "";
+          state.user = null;
+          state.tokenExpiresAt = 0;
+        });
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("token_expires_at");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
+        return Promise.reject(error);
       }
 
-      // 如果是刷新token的请求失败
-      if (originalRequest.url === '/auth/token/refresh/') {
-        console.error('Refresh token失败，跳转登录页')
-        await userStore.logout()
-        return Promise.reject(error)
+      if (originalRequest.url === "/auth/token/refresh/") {
+        await userStore.logout();
+        return Promise.reject(error);
       }
 
-      // 如果有refresh token，尝试刷新
       if (userStore.refreshToken && !isRefreshing) {
-        originalRequest._retry = true
-        isRefreshing = true
+        originalRequest._retry = true;
+        isRefreshing = true;
 
         try {
-          console.log('收到401响应，尝试刷新token...')
-          const newToken = await userStore.refreshAccessToken()
-          console.log('Token刷新成功，重试原请求')
-          processQueue(null, newToken)
-
-          // 更新当前请求的token
-          originalRequest.headers.Authorization = `Bearer ${newToken}`
-
-          // 重试原请求
-          return api(originalRequest)
+          const newToken = await userStore.refreshAccessToken();
+          processQueue(null, newToken);
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          return api(originalRequest);
         } catch (refreshError) {
-          console.error('Token刷新失败:', refreshError)
-          processQueue(refreshError, null)
-          await userStore.logout()
-          return Promise.reject(refreshError)
+          refreshError.userMessage = resolveApiErrorMessage(refreshError);
+          processQueue(refreshError, null);
+          await userStore.logout();
+          return Promise.reject(refreshError);
         } finally {
-          isRefreshing = false
+          isRefreshing = false;
         }
-      } else {
-        // 没有refresh token，直接退出
-        console.error('没有refresh token，跳转登录页')
-        await userStore.logout()
       }
 
-      return Promise.reject(error)
+      await userStore.logout();
+      return Promise.reject(error);
     }
 
-    // 全局错误处理（仅处理业务代码不会覆盖的场景）
-    if (error.response?.status === 401) {
-      ElMessage.error('登录已过期，请重新登录')
-    } else if (error.response?.status >= 500) {
-      ElMessage.error('服务器错误，请稍后重试')
+    if (originalRequest.suppressGlobalError) {
+      return Promise.reject(error);
     }
-    // data.error / data.detail 由各业务代码自行处理，避免重复提示
 
-    return Promise.reject(error)
-  }
-)
+    if (!error.response || error.code === "ECONNABORTED") {
+      ElMessage.error(error.userMessage);
+    } else if (error.response.status === 401) {
+      ElMessage.error(error.userMessage);
+    } else if (error.response.status >= 500) {
+      ElMessage.error(error.userMessage);
+    }
 
-export default api
+    return Promise.reject(error);
+  },
+);
+
+export default api;

@@ -19,6 +19,20 @@ class AppProject(models.Model):
     name = models.CharField(max_length=200, verbose_name='项目名称')
     description = models.TextField(blank=True, default='', verbose_name='项目描述')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='IN_PROGRESS', verbose_name='项目状态')
+    android_app_package = models.ForeignKey(
+        'AppPackage',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='android_projects',
+        verbose_name='Android默认应用包'
+    )
+    ios_bundle_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='iOS Bundle ID'
+    )
     start_date = models.DateField(null=True, blank=True, verbose_name='开始日期')
     end_date = models.DateField(null=True, blank=True, verbose_name='结束日期')
     owner = models.ForeignKey(
@@ -147,6 +161,7 @@ class AppElement(models.Model):
         (ElementType.IMAGE, '图片元素'),
         (ElementType.POS, '坐标元素'),
         (ElementType.REGION, '区域元素'),
+        (ElementType.SELECTOR, '定位元素'),
     ]
 
     project = models.ForeignKey(
@@ -190,6 +205,21 @@ class AppElement(models.Model):
         }
         pos类型: {"x": 100, "y": 200}
         region类型: {"x1": 100, "y1": 200, "x2": 300, "y2": 400}
+        selector类型: {
+            "package": "com.example.demo",
+            "activity": "com.example.demo.activity.LoginActivity",
+            "resource_id": "com.example.demo:id/btnLogin",
+            "class": "android.widget.Button",
+            "text": "登录",
+            "content_desc": "",
+            "hint": "",
+            "clickable": true,
+            "focusable": true,
+            "enabled": true,
+            "bounds": "[96,984][984,1128]",
+            "locator_key": "btn_login",
+            "source_file": "demo_login.yaml"
+        }
         """
     )
     
@@ -259,6 +289,84 @@ class AppElement(models.Model):
         self.usage_count = models.F('usage_count') + 1
         self.last_used_at = timezone.now()
         self.save(update_fields=['usage_count', 'last_used_at'])
+
+
+class AppSemanticDictionary(models.Model):
+    """Semantic naming dictionary for APP automation elements."""
+
+    CATEGORY_CHOICES = [
+        ('page', 'Page'),
+        ('object', 'Business Object'),
+        ('role', 'Control Role'),
+        ('purpose', 'Purpose'),
+    ]
+    GOVERNANCE_STATUS_CHOICES = [
+        ('approved', 'Approved'),
+        ('pending', 'Pending review'),
+        ('merged', 'Merged'),
+        ('deprecated', 'Deprecated'),
+    ]
+
+    project = models.ForeignKey(
+        AppProject,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='semantic_dictionaries',
+        verbose_name='Project',
+    )
+    category = models.CharField(max_length=32, choices=CATEGORY_CHOICES, verbose_name='Category')
+    value = models.CharField(max_length=120, verbose_name='Value')
+    label = models.CharField(max_length=120, blank=True, default='', verbose_name='Label')
+    description = models.TextField(blank=True, default='', verbose_name='Description')
+    governance_status = models.CharField(
+        max_length=20,
+        choices=GOVERNANCE_STATUS_CHOICES,
+        default='approved',
+        verbose_name='Governance status',
+    )
+    merged_to = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='merged_items',
+        verbose_name='Merged to',
+    )
+    source = models.CharField(max_length=40, blank=True, default='manual', verbose_name='Source')
+    sort_order = models.IntegerField(default=0, verbose_name='Sort order')
+    is_active = models.BooleanField(default=True, verbose_name='Active')
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_app_semantic_dictionaries',
+        verbose_name='Created by',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated at')
+
+    class Meta:
+        db_table = 'app_semantic_dictionaries'
+        verbose_name = 'APP semantic dictionary'
+        verbose_name_plural = 'APP semantic dictionaries'
+        ordering = ['category', 'sort_order', 'value']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['project', 'category', 'value'],
+                name='uniq_app_semantic_dict_project_category_value',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['category', 'is_active']),
+            models.Index(fields=['project', 'category']),
+            models.Index(fields=['governance_status', 'category']),
+        ]
+
+    def __str__(self):
+        scope = self.project.name if self.project_id else 'global'
+        return f"{scope}/{self.category}/{self.value}"
 
 
 class AppComponent(models.Model):
@@ -398,6 +506,7 @@ class AppTestSuite(models.Model):
         ('running', '执行中'),
         ('completed', '已完成'),
         ('error', '执行异常'),
+        ('stopped', '已停止'),
     ]
     EXECUTION_RESULT_CHOICES = [
         ('passed', '通过'),
@@ -490,12 +599,153 @@ class AppTestSuiteCase(models.Model):
         return f'{self.test_suite.name} - {self.test_case.name}'
 
 
+class AppTestCaseFolder(models.Model):
+    """APP automated test case business folder."""
+
+    project = models.ForeignKey(
+        AppProject,
+        on_delete=models.CASCADE,
+        related_name='test_case_folders',
+        verbose_name='所属项目'
+    )
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='children',
+        verbose_name='父目录'
+    )
+    name = models.CharField(max_length=120, verbose_name='目录名称')
+    description = models.TextField(blank=True, default='', verbose_name='目录说明')
+    order = models.IntegerField(default=0, verbose_name='排序')
+    level = models.IntegerField(default=1, verbose_name='层级')
+    is_system = models.BooleanField(default=False, verbose_name='系统目录')
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_app_test_case_folders',
+        verbose_name='创建人'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        db_table = 'app_test_case_folders'
+        verbose_name = 'APP用例业务目录'
+        verbose_name_plural = 'APP用例业务目录'
+        ordering = ['project_id', 'parent_id', 'order', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['project', 'parent', 'name'],
+                name='uniq_app_case_folder_project_parent_name',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['project', 'parent']),
+            models.Index(fields=['project', 'level']),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.level = (self.parent.level + 1) if self.parent else 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class AppTestCaseTag(models.Model):
+    """Project-scoped controlled tag for APP test case governance."""
+
+    project = models.ForeignKey(
+        AppProject,
+        on_delete=models.CASCADE,
+        related_name='test_case_tags',
+        verbose_name='所属项目'
+    )
+    name = models.CharField(max_length=80, verbose_name='标签名称')
+    color = models.CharField(max_length=20, blank=True, default='', verbose_name='标签颜色')
+    description = models.TextField(blank=True, default='', verbose_name='标签说明')
+    is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_app_test_case_tags',
+        verbose_name='创建人'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        db_table = 'app_test_case_tags'
+        verbose_name = 'APP用例标签'
+        verbose_name_plural = 'APP用例标签'
+        ordering = ['project_id', 'name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['project', 'name'],
+                name='uniq_app_case_tag_project_name',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['project', 'is_active']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class AppTestCase(models.Model):
     """APP测试用例"""
+    CASE_TYPE_CHOICES = [
+        ('smoke', '冒烟'),
+        ('regression', '回归'),
+        ('core', '核心链路'),
+        ('negative', '异常场景'),
+        ('special', '专项'),
+    ]
+    PRIORITY_CHOICES = [
+        ('P0', 'P0'),
+        ('P1', 'P1'),
+        ('P2', 'P2'),
+        ('P3', 'P3'),
+    ]
+    LIFECYCLE_CHOICES = [
+        ('draft', '草稿'),
+        ('active', '可用'),
+        ('maintenance', '维护中'),
+        ('deprecated', '已废弃'),
+    ]
+    SOURCE_CHOICES = [
+        ('manual', '人工创建'),
+        ('recording', '录制生成'),
+        ('ai_generated', 'AI生成'),
+        ('ai_exploration', 'AI探索转化'),
+        ('imported', '导入'),
+    ]
+    DATA_IMPACT_CHOICES = [
+        ('readonly', '只读'),
+        ('mutates', '会改数据'),
+        ('self_healing', '可闭环恢复'),
+        ('destructive', '破坏性'),
+    ]
+
     project = models.ForeignKey(
         AppProject, on_delete=models.CASCADE,
         null=True, blank=True,
         related_name='test_cases', verbose_name='所属项目'
+    )
+    folder = models.ForeignKey(
+        AppTestCaseFolder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='test_cases',
+        verbose_name='业务目录'
     )
     name = models.CharField(max_length=200, verbose_name='用例名称')
     description = models.TextField(blank=True, default='', verbose_name='用例描述')
@@ -513,6 +763,52 @@ class AppTestCase(models.Model):
     # 用例配置
     timeout = models.IntegerField(default=300, verbose_name='超时时间(秒)', help_text='默认5分钟')
     retry_count = models.IntegerField(default=0, verbose_name='失败重试次数')
+
+    # 资产治理
+    case_type = models.CharField(
+        max_length=30,
+        choices=CASE_TYPE_CHOICES,
+        default='regression',
+        verbose_name='用例类型'
+    )
+    priority = models.CharField(
+        max_length=10,
+        choices=PRIORITY_CHOICES,
+        default='P1',
+        verbose_name='优先级'
+    )
+    lifecycle_status = models.CharField(
+        max_length=30,
+        choices=LIFECYCLE_CHOICES,
+        default='active',
+        verbose_name='生命周期'
+    )
+    data_impact = models.CharField(
+        max_length=30,
+        choices=DATA_IMPACT_CHOICES,
+        default='readonly',
+        verbose_name='数据影响'
+    )
+    source = models.CharField(
+        max_length=30,
+        choices=SOURCE_CHOICES,
+        default='manual',
+        verbose_name='来源'
+    )
+    maintainer = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='maintained_app_test_cases',
+        verbose_name='维护人'
+    )
+    tags = models.ManyToManyField(
+        AppTestCaseTag,
+        blank=True,
+        related_name='test_cases',
+        verbose_name='标签'
+    )
     
     # 元数据
     created_by = models.ForeignKey(
@@ -531,6 +827,13 @@ class AppTestCase(models.Model):
         verbose_name = 'APP测试用例'
         verbose_name_plural = 'APP测试用例'
         ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['project', 'folder']),
+            models.Index(fields=['project', 'priority']),
+            models.Index(fields=['project', 'lifecycle_status']),
+            models.Index(fields=['project', 'case_type']),
+            models.Index(fields=['maintainer']),
+        ]
     
     def __str__(self):
         return self.name
@@ -611,6 +914,11 @@ class AppTestExecution(models.Model):
     duration = models.FloatField(default=0, verbose_name='执行时长(秒)')
     report_path = models.CharField(max_length=500, blank=True, default='', verbose_name='Allure报告路径')
     error_message = models.TextField(blank=True, default='', verbose_name='错误信息')
+    performance_metrics = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='APP性能指标'
+    )
     
     # 执行结果统计
     total_steps = models.IntegerField(default=0, verbose_name='总步骤数')
@@ -654,6 +962,609 @@ class AppTestExecution(models.Model):
         if self.total_steps == 0:
             return 0
         return round((self.passed_steps / self.total_steps) * 100, 2)
+
+
+class AppExplorationTask(models.Model):
+    """APP exploratory testing task.
+
+    This is intentionally separated from deterministic test executions. The
+    exploration flow is non-deterministic and is used to discover risks and
+    produce reusable path drafts.
+    """
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('running', 'Running'),
+        ('completed', 'Completed'),
+        ('error', 'Error'),
+        ('stopped', 'Stopped'),
+    ]
+    RESULT_CHOICES = [
+        ('passed', 'No issue found'),
+        ('warning', 'Issues found'),
+        ('failed', 'Execution failed'),
+    ]
+
+    project = models.ForeignKey(
+        AppProject,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exploration_tasks',
+        verbose_name='Project',
+    )
+    app_package = models.ForeignKey(
+        AppPackage,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exploration_tasks',
+        verbose_name='App package',
+    )
+    device = models.ForeignKey(
+        AppDevice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exploration_tasks',
+        verbose_name='Device',
+    )
+    name = models.CharField(max_length=200, verbose_name='Task name')
+    objective = models.TextField(blank=True, default='', verbose_name='Objective')
+    start_note = models.TextField(blank=True, default='', verbose_name='Start note')
+    entry_keywords = models.JSONField(default=list, blank=True, verbose_name='Entry keywords')
+    start_actions = models.JSONField(default=list, blank=True, verbose_name='Start navigation actions')
+    max_steps = models.IntegerField(default=20, verbose_name='Max steps')
+    max_duration = models.IntegerField(default=300, verbose_name='Max duration seconds')
+    blacklist_keywords = models.JSONField(default=list, blank=True, verbose_name='Blacklist keywords')
+    strategy = models.CharField(max_length=50, default='rule_mvp', verbose_name='Strategy')
+    source_task = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='derived_tasks',
+        verbose_name='Source exploration task',
+    )
+    source_type = models.CharField(max_length=50, blank=True, default='', verbose_name='Source type')
+    source_summary = models.JSONField(default=dict, blank=True, verbose_name='Source summary')
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='Status')
+    result = models.CharField(max_length=20, choices=RESULT_CHOICES, null=True, blank=True, default=None, verbose_name='Result')
+    task_id = models.CharField(max_length=255, blank=True, default='', verbose_name='Celery task ID')
+    progress = models.IntegerField(default=0, verbose_name='Progress')
+    started_at = models.DateTimeField(null=True, blank=True, verbose_name='Started at')
+    finished_at = models.DateTimeField(null=True, blank=True, verbose_name='Finished at')
+    duration = models.FloatField(default=0, verbose_name='Duration seconds')
+    total_steps = models.IntegerField(default=0, verbose_name='Total steps')
+    explored_pages = models.IntegerField(default=0, verbose_name='Explored pages')
+    issue_count = models.IntegerField(default=0, verbose_name='Issue count')
+    summary = models.JSONField(default=dict, blank=True, verbose_name='Summary')
+    error_message = models.TextField(blank=True, default='', verbose_name='Error message')
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_app_exploration_tasks',
+        verbose_name='Created by',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated at')
+
+    class Meta:
+        db_table = 'app_exploration_tasks'
+        verbose_name = 'APP exploration task'
+        verbose_name_plural = 'APP exploration tasks'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['project']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def project_name(self):
+        return self.project.name if self.project else ''
+
+    @property
+    def package_name(self):
+        return self.app_package.package_name if self.app_package else ''
+
+    @property
+    def device_name(self):
+        return (self.device.name or self.device.device_id) if self.device else ''
+
+    @property
+    def created_by_name(self):
+        return self.created_by.username if self.created_by else ''
+
+    @property
+    def source_task_name(self):
+        return self.source_task.name if self.source_task else ''
+
+    def latest_run(self):
+        return self.runs.order_by('-created_at').first()
+
+    def report_steps(self):
+        latest_run = self.latest_run()
+        if latest_run:
+            return self.steps.filter(run=latest_run).order_by('step_index')
+        return self.steps.filter(run__isnull=True).order_by('step_index')
+
+
+class AppExplorationRun(models.Model):
+    """One execution batch for an APP exploration task."""
+
+    STATUS_CHOICES = AppExplorationTask.STATUS_CHOICES
+    RESULT_CHOICES = AppExplorationTask.RESULT_CHOICES
+
+    task = models.ForeignKey(
+        AppExplorationTask,
+        on_delete=models.CASCADE,
+        related_name='runs',
+        verbose_name='Exploration task',
+    )
+    device = models.ForeignKey(
+        AppDevice,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exploration_runs',
+        verbose_name='Device',
+    )
+    app_package = models.ForeignKey(
+        AppPackage,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exploration_runs',
+        verbose_name='App package',
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='Status')
+    result = models.CharField(max_length=20, choices=RESULT_CHOICES, null=True, blank=True, default=None, verbose_name='Result')
+    celery_task_id = models.CharField(max_length=255, blank=True, default='', verbose_name='Celery task ID')
+    strategy = models.CharField(max_length=50, blank=True, default='', verbose_name='Strategy')
+    started_at = models.DateTimeField(null=True, blank=True, verbose_name='Started at')
+    finished_at = models.DateTimeField(null=True, blank=True, verbose_name='Finished at')
+    duration = models.FloatField(default=0, verbose_name='Duration seconds')
+    total_steps = models.IntegerField(default=0, verbose_name='Total steps')
+    explored_pages = models.IntegerField(default=0, verbose_name='Explored pages')
+    issue_count = models.IntegerField(default=0, verbose_name='Issue count')
+    summary = models.JSONField(default=dict, blank=True, verbose_name='Summary')
+    error_message = models.TextField(blank=True, default='', verbose_name='Error message')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated at')
+
+    class Meta:
+        db_table = 'app_exploration_runs'
+        verbose_name = 'APP exploration run'
+        verbose_name_plural = 'APP exploration runs'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['task', '-created_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['strategy']),
+        ]
+
+    def __str__(self):
+        return f'{self.task_id} run #{self.id or "new"}'
+
+
+class AppExplorationStep(models.Model):
+    """Single step generated by an exploratory testing task."""
+
+    ACTION_CHOICES = [
+        ('tap', 'Tap'),
+        ('swipe', 'Swipe'),
+        ('back', 'Back'),
+        ('wait', 'Wait'),
+        ('stop', 'Stop'),
+    ]
+
+    task = models.ForeignKey(
+        AppExplorationTask,
+        on_delete=models.CASCADE,
+        related_name='steps',
+        verbose_name='Task',
+    )
+    run = models.ForeignKey(
+        AppExplorationRun,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='steps',
+        verbose_name='Execution run',
+    )
+    step_index = models.IntegerField(verbose_name='Step index')
+    action_type = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name='Action type')
+    action_label = models.CharField(max_length=255, blank=True, default='', verbose_name='Action label')
+    target_text = models.CharField(max_length=255, blank=True, default='', verbose_name='Target text')
+    target_resource_id = models.CharField(max_length=255, blank=True, default='', verbose_name='Target resource id')
+    target_class = models.CharField(max_length=255, blank=True, default='', verbose_name='Target class')
+    bounds = models.CharField(max_length=100, blank=True, default='', verbose_name='Bounds')
+    x = models.IntegerField(null=True, blank=True, verbose_name='X')
+    y = models.IntegerField(null=True, blank=True, verbose_name='Y')
+    before_activity = models.CharField(max_length=255, blank=True, default='', verbose_name='Before activity')
+    after_activity = models.CharField(max_length=255, blank=True, default='', verbose_name='After activity')
+    before_signature = models.CharField(max_length=64, blank=True, default='', verbose_name='Before signature')
+    after_signature = models.CharField(max_length=64, blank=True, default='', verbose_name='After signature')
+    changed = models.BooleanField(default=False, verbose_name='Page changed')
+    before_screenshot = models.CharField(max_length=500, blank=True, default='', verbose_name='Before screenshot')
+    after_screenshot = models.CharField(max_length=500, blank=True, default='', verbose_name='After screenshot')
+    page_source_path = models.CharField(max_length=500, blank=True, default='', verbose_name='Page source path')
+    issue_type = models.CharField(max_length=50, blank=True, default='', verbose_name='Issue type')
+    issue_message = models.TextField(blank=True, default='', verbose_name='Issue message')
+    logcat_excerpt = models.TextField(blank=True, default='', verbose_name='Logcat excerpt')
+    raw = models.JSONField(default=dict, blank=True, verbose_name='Raw data')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
+
+    class Meta:
+        db_table = 'app_exploration_steps'
+        verbose_name = 'APP exploration step'
+        verbose_name_plural = 'APP exploration steps'
+        ordering = ['task_id', 'run_id', 'step_index']
+        unique_together = ['task', 'run', 'step_index']
+        indexes = [
+            models.Index(fields=['task', 'step_index']),
+            models.Index(fields=['run', 'step_index']),
+            models.Index(fields=['issue_type']),
+        ]
+
+    def __str__(self):
+        return f'{self.task_id} #{self.step_index} {self.action_type}'
+
+
+class AppInspectionTargetResult(models.Model):
+    """Evidence and result for one target in controlled inspection mode."""
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('found_effective', 'Found and effective'),
+        ('found_unconfirmed', 'Found but unconfirmed'),
+        ('not_found', 'Not found'),
+        ('risk_skipped', 'Risk skipped'),
+        ('anchor_recovery_failed', 'Anchor recovery failed'),
+        ('error', 'Error'),
+    ]
+    REVIEW_RESOLUTION_CHOICES = [
+        ('valid_issue', 'Valid issue'),
+        ('normal_behavior', 'Normal behavior'),
+        ('element_needs_update', 'Element needs update'),
+        ('target_should_remove', 'Target should remove'),
+        ('wrong_start_page', 'Wrong start page'),
+        ('rule_exception', 'Rule exception'),
+    ]
+
+    task = models.ForeignKey(
+        AppExplorationTask,
+        on_delete=models.CASCADE,
+        related_name='inspection_target_results',
+        verbose_name='Exploration task',
+    )
+    run = models.ForeignKey(
+        AppExplorationRun,
+        on_delete=models.CASCADE,
+        related_name='target_results',
+        verbose_name='Execution run',
+    )
+    step = models.ForeignKey(
+        AppExplorationStep,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inspection_results',
+        verbose_name='Evidence step',
+    )
+    target_name = models.CharField(max_length=255, verbose_name='Target name')
+    status = models.CharField(max_length=40, choices=STATUS_CHOICES, default='pending', verbose_name='Status')
+    action_type = models.CharField(max_length=30, blank=True, default='tap', verbose_name='Action type')
+    bounds = models.CharField(max_length=100, blank=True, default='', verbose_name='Bounds')
+    x = models.IntegerField(null=True, blank=True, verbose_name='X')
+    y = models.IntegerField(null=True, blank=True, verbose_name='Y')
+    before_activity = models.CharField(max_length=255, blank=True, default='', verbose_name='Before activity')
+    after_activity = models.CharField(max_length=255, blank=True, default='', verbose_name='After activity')
+    before_signature = models.CharField(max_length=64, blank=True, default='', verbose_name='Before signature')
+    after_signature = models.CharField(max_length=64, blank=True, default='', verbose_name='After signature')
+    changed = models.BooleanField(default=False, verbose_name='State changed')
+    before_screenshot = models.CharField(max_length=500, blank=True, default='', verbose_name='Before screenshot')
+    after_screenshot = models.CharField(max_length=500, blank=True, default='', verbose_name='After screenshot')
+    evidence = models.JSONField(default=dict, blank=True, verbose_name='Evidence')
+    risk = models.JSONField(default=dict, blank=True, verbose_name='Risk')
+    error_message = models.TextField(blank=True, default='', verbose_name='Error message')
+    review_resolution = models.CharField(
+        max_length=40,
+        choices=REVIEW_RESOLUTION_CHOICES,
+        blank=True,
+        default='',
+        verbose_name='Review resolution',
+    )
+    review_note = models.TextField(blank=True, default='', verbose_name='Review note')
+    review_context = models.JSONField(default=dict, blank=True, verbose_name='Review context')
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_app_inspection_targets',
+        verbose_name='Reviewed by',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='Reviewed at')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated at')
+
+    class Meta:
+        db_table = 'app_inspection_target_results'
+        verbose_name = 'APP inspection target result'
+        verbose_name_plural = 'APP inspection target results'
+        ordering = ['run_id', 'id']
+        indexes = [
+            models.Index(fields=['task', 'run']),
+            models.Index(fields=['status']),
+            models.Index(fields=['target_name']),
+            models.Index(fields=['review_resolution']),
+        ]
+
+    def __str__(self):
+        return f'{self.target_name} - {self.status}'
+
+
+class AppInspectionReviewRule(models.Model):
+    """Reusable human review rule for recurring target-inspection conclusions."""
+
+    RESOLUTION_CHOICES = AppInspectionTargetResult.REVIEW_RESOLUTION_CHOICES
+
+    task = models.ForeignKey(
+        AppExplorationTask,
+        on_delete=models.CASCADE,
+        related_name='inspection_review_rules',
+        verbose_name='Exploration task',
+    )
+    target_name = models.CharField(max_length=255, verbose_name='Target name')
+    status = models.CharField(max_length=40, blank=True, default='', verbose_name='Matched status')
+    resolution = models.CharField(max_length=40, choices=RESOLUTION_CHOICES, verbose_name='Review resolution')
+    note = models.TextField(blank=True, default='', verbose_name='Review note')
+    enabled = models.BooleanField(default=True, verbose_name='Enabled')
+    created_from_result = models.ForeignKey(
+        AppInspectionTargetResult,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_review_rules',
+        verbose_name='Created from target result',
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_app_inspection_review_rules',
+        verbose_name='Created by',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated at')
+
+    class Meta:
+        db_table = 'app_inspection_review_rules'
+        verbose_name = 'APP inspection review rule'
+        verbose_name_plural = 'APP inspection review rules'
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['task', 'target_name']),
+            models.Index(fields=['resolution']),
+            models.Index(fields=['enabled']),
+        ]
+
+    def __str__(self):
+        return f'{self.target_name} - {self.resolution}'
+
+
+class AppPageNode(models.Model):
+    """Persistent page node discovered during APP exploration."""
+
+    project = models.ForeignKey(
+        AppProject,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='page_nodes',
+        verbose_name='Project',
+    )
+    app_package = models.ForeignKey(
+        AppPackage,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='page_nodes',
+        verbose_name='App package',
+    )
+    platform = models.CharField(max_length=20, default='android', verbose_name='Platform')
+    app_identifier = models.CharField(max_length=255, blank=True, default='', verbose_name='App identifier')
+    app_version = models.CharField(max_length=100, blank=True, default='', verbose_name='App version')
+    activity = models.CharField(max_length=255, blank=True, default='', verbose_name='Activity')
+    page_signature = models.CharField(max_length=64, verbose_name='Page signature')
+    semantic_signature = models.CharField(max_length=64, blank=True, default='', verbose_name='Semantic signature')
+    business_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Business page name')
+    title = models.CharField(max_length=255, blank=True, default='', verbose_name='Page title')
+    representative_screenshot = models.CharField(max_length=500, blank=True, default='', verbose_name='Representative screenshot')
+    screen_size = models.JSONField(default=list, blank=True, verbose_name='Screen size')
+    first_seen_run = models.ForeignKey(
+        AppExplorationRun,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='first_seen_page_nodes',
+        verbose_name='First seen run',
+    )
+    last_seen_run = models.ForeignKey(
+        AppExplorationRun,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='last_seen_page_nodes',
+        verbose_name='Last seen run',
+    )
+    visit_count = models.IntegerField(default=0, verbose_name='Visit count')
+    raw = models.JSONField(default=dict, blank=True, verbose_name='Raw page data')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated at')
+
+    class Meta:
+        db_table = 'app_page_nodes'
+        verbose_name = 'APP page node'
+        verbose_name_plural = 'APP page nodes'
+        unique_together = ['project', 'app_package', 'platform', 'page_signature']
+        indexes = [
+            models.Index(fields=['project', 'app_package', 'platform']),
+            models.Index(fields=['page_signature']),
+            models.Index(fields=['semantic_signature']),
+            models.Index(fields=['activity']),
+        ]
+
+    def __str__(self):
+        return self.business_name or self.title or self.activity or self.page_signature
+
+
+class AppPageElement(models.Model):
+    """Control snapshot discovered on a persistent page node."""
+
+    page = models.ForeignKey(
+        AppPageNode,
+        on_delete=models.CASCADE,
+        related_name='elements',
+        verbose_name='Page node',
+    )
+    semantic_element = models.ForeignKey(
+        AppElement,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='page_element_snapshots',
+        verbose_name='Linked semantic element',
+    )
+    element_signature = models.CharField(max_length=64, verbose_name='Element signature')
+    text = models.CharField(max_length=255, blank=True, default='', verbose_name='Text')
+    content_desc = models.CharField(max_length=255, blank=True, default='', verbose_name='Content desc')
+    resource_id = models.CharField(max_length=255, blank=True, default='', verbose_name='Resource id')
+    class_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Class name')
+    role = models.CharField(max_length=80, blank=True, default='', verbose_name='Control role')
+    bounds = models.CharField(max_length=100, blank=True, default='', verbose_name='Bounds')
+    normalized_bounds = models.JSONField(default=dict, blank=True, verbose_name='Normalized bounds')
+    clickable = models.BooleanField(default=False, verbose_name='Clickable')
+    enabled = models.BooleanField(default=True, verbose_name='Enabled')
+    risk_level = models.CharField(max_length=30, blank=True, default='', verbose_name='Risk level')
+    first_seen_run = models.ForeignKey(
+        AppExplorationRun,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='first_seen_page_elements',
+        verbose_name='First seen run',
+    )
+    last_seen_run = models.ForeignKey(
+        AppExplorationRun,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='last_seen_page_elements',
+        verbose_name='Last seen run',
+    )
+    seen_count = models.IntegerField(default=0, verbose_name='Seen count')
+    raw = models.JSONField(default=dict, blank=True, verbose_name='Raw element data')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated at')
+
+    class Meta:
+        db_table = 'app_page_elements'
+        verbose_name = 'APP page element'
+        verbose_name_plural = 'APP page elements'
+        unique_together = ['page', 'element_signature']
+        indexes = [
+            models.Index(fields=['page', 'role']),
+            models.Index(fields=['resource_id']),
+            models.Index(fields=['text']),
+            models.Index(fields=['risk_level']),
+        ]
+
+    def __str__(self):
+        return self.text or self.content_desc or self.resource_id or self.element_signature
+
+
+class AppPageTransition(models.Model):
+    """Observed transition between two page nodes."""
+
+    project = models.ForeignKey(
+        AppProject,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='page_transitions',
+        verbose_name='Project',
+    )
+    app_package = models.ForeignKey(
+        AppPackage,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='page_transitions',
+        verbose_name='App package',
+    )
+    from_page = models.ForeignKey(
+        AppPageNode,
+        on_delete=models.CASCADE,
+        related_name='outgoing_transitions',
+        verbose_name='From page',
+    )
+    to_page = models.ForeignKey(
+        AppPageNode,
+        on_delete=models.CASCADE,
+        related_name='incoming_transitions',
+        verbose_name='To page',
+    )
+    trigger_element = models.ForeignKey(
+        AppPageElement,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='triggered_transitions',
+        verbose_name='Trigger element',
+    )
+    action_type = models.CharField(max_length=30, default='tap', verbose_name='Action type')
+    trigger_text = models.CharField(max_length=255, blank=True, default='', verbose_name='Trigger text')
+    trigger_resource_id = models.CharField(max_length=255, blank=True, default='', verbose_name='Trigger resource id')
+    trigger_bounds = models.CharField(max_length=100, blank=True, default='', verbose_name='Trigger bounds')
+    success_count = models.IntegerField(default=0, verbose_name='Success count')
+    failure_count = models.IntegerField(default=0, verbose_name='Failure count')
+    confidence = models.FloatField(default=0, verbose_name='Confidence')
+    last_seen_run = models.ForeignKey(
+        AppExplorationRun,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='last_seen_page_transitions',
+        verbose_name='Last seen run',
+    )
+    raw = models.JSONField(default=dict, blank=True, verbose_name='Raw transition data')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created at')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated at')
+
+    class Meta:
+        db_table = 'app_page_transitions'
+        verbose_name = 'APP page transition'
+        verbose_name_plural = 'APP page transitions'
+        unique_together = ['from_page', 'to_page', 'action_type', 'trigger_text', 'trigger_resource_id', 'trigger_bounds']
+        indexes = [
+            models.Index(fields=['project', 'app_package']),
+            models.Index(fields=['from_page', 'to_page']),
+            models.Index(fields=['confidence']),
+        ]
+
+    def __str__(self):
+        return f'{self.from_page_id} -> {self.to_page_id} ({self.action_type})'
 
 
 class AppScheduledTask(models.Model):
