@@ -179,6 +179,24 @@ export function disconnectDevice(id) {
   });
 }
 
+// ========== 执行机 Agent ==========
+
+export function getExecutionAgents(params) {
+  return request({
+    url: "/app-automation/execution-agents/",
+    method: "get",
+    params,
+  });
+}
+
+export function sendAgentHeartbeat(data) {
+  return request({
+    url: "/app-automation/execution-agents/heartbeat/",
+    method: "post",
+    data,
+  });
+}
+
 /**
  * 连接远程设备
  */

@@ -5,6 +5,7 @@ APP自动化测试 Views 包
 from .project_views import AppProjectViewSet
 from .config_views import AppConfigViewSet
 from .device_views import AppDeviceViewSet
+from .agent_views import AppExecutionAgentViewSet
 from .element_views import AppElementViewSet
 from .semantic_dictionary_views import AppSemanticDictionaryViewSet
 from .component_views import (
@@ -34,6 +35,7 @@ __all__ = [
     
     # 设备管理
     'AppDeviceViewSet',
+    'AppExecutionAgentViewSet',
     
     # 元素管理
     'AppElementViewSet',

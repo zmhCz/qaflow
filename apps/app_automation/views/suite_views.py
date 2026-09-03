@@ -339,6 +339,7 @@ class AppTestSuiteViewSet(viewsets.ModelViewSet):
         suite = self.get_object()
         device_id = request.data.get('device_id')
         package_name = request.data.get('package_name')
+        execution_mode = request.data.get('execution_mode') or 'server'
 
         if not device_id:
             return Response({'success': False, 'message': '请选择执行设备'},
@@ -374,13 +375,18 @@ class AppTestSuiteViewSet(viewsets.ModelViewSet):
                 return Response({'success': False, 'message': '设备已被其他用户锁定'},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-            precheck = run_execution_precheck(device, package_name=package_name)
-            if not precheck.get('can_submit'):
-                return Response({
-                    'success': False,
-                    'message': build_precheck_error_message(precheck),
-                    'precheck': precheck,
-                }, status=status.HTTP_400_BAD_REQUEST)
+            if execution_mode not in ('server', 'agent'):
+                return Response({'success': False, 'message': '执行模式不正确'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            if execution_mode == 'server':
+                precheck = run_execution_precheck(device, package_name=package_name)
+                if not precheck.get('can_submit'):
+                    return Response({
+                        'success': False,
+                        'message': build_precheck_error_message(precheck),
+                        'precheck': precheck,
+                    }, status=status.HTTP_400_BAD_REQUEST)
 
             # 为每个用例创建执行记录
             executions = []
@@ -390,7 +396,8 @@ class AppTestSuiteViewSet(viewsets.ModelViewSet):
                     test_suite=suite,
                     device=device,
                     user=request.user,
-                    status='pending'
+                    status='pending',
+                    execution_mode=execution_mode,
                 )
                 executions.append(execution)
 
@@ -407,6 +414,22 @@ class AppTestSuiteViewSet(viewsets.ModelViewSet):
             # 触发 Celery 任务，顺序执行
             from ..tasks import execute_app_suite_task
             execution_ids = [e.id for e in executions]
+            if execution_mode == 'agent':
+                for execution in executions:
+                    execution.task_id = f'agent-pending-{execution.id}'
+                    execution.save(update_fields=['task_id'])
+                logger.info("测试套件已提交到 Agent 队列: suite=%s, cases=%s", suite.name, len(executions))
+                return Response({
+                    'success': True,
+                    'message': f'测试套件已提交到本地 Agent 队列，共 {len(executions)} 个用例',
+                    'data': {
+                        'suite_id': suite.id,
+                        'task_id': f'agent-suite-{suite.id}',
+                        'execution_ids': execution_ids,
+                        'test_case_count': len(executions),
+                    }
+                })
+
             task = dispatch_app_task(
                 execute_app_suite_task,
                 suite_id=suite.id,

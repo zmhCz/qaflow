@@ -30,6 +30,7 @@ from .views import (
     AppNotificationLogViewSet,
     AppTestExecutionViewSet,
     AppDashboardViewSet,
+    AppExecutionAgentViewSet,
     AppPageMapViewSet,
 )
 
@@ -39,6 +40,7 @@ router.register(r'projects', AppProjectViewSet, basename='app-project')
 router.register(r'config', AppConfigViewSet, basename='app-config')
 router.register(r'dashboard', AppDashboardViewSet, basename='app-dashboard')
 router.register(r'devices', AppDeviceViewSet, basename='app-device')
+router.register(r'execution-agents', AppExecutionAgentViewSet, basename='app-execution-agent')
 router.register(r'elements', AppElementViewSet, basename='app-element')
 router.register(r'semantic-dictionaries', AppSemanticDictionaryViewSet, basename='app-semantic-dictionary')
 router.register(r'components', AppComponentViewSet, basename='app-component')

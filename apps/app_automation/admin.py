@@ -2,6 +2,7 @@
 from django.contrib import admin
 from .models import (
     AppDevice,
+    AppExecutionAgent,
     AppElement,
     AppComponent,
     AppCustomComponent,
@@ -14,10 +15,18 @@ from .models import (
 
 @admin.register(AppDevice)
 class AppDeviceAdmin(admin.ModelAdmin):
-    list_display = ('device_id', 'name', 'status', 'android_version', 'connection_type', 'locked_by', 'updated_at')
-    list_filter = ('status', 'connection_type')
-    search_fields = ('device_id', 'name')
+    list_display = ('device_id', 'name', 'status', 'android_version', 'connection_type', 'agent', 'locked_by', 'updated_at')
+    list_filter = ('status', 'connection_type', 'agent')
+    search_fields = ('device_id', 'name', 'agent__name', 'agent__agent_id')
     readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(AppExecutionAgent)
+class AppExecutionAgentAdmin(admin.ModelAdmin):
+    list_display = ('name', 'agent_id', 'status', 'last_seen_at', 'last_ip', 'created_by', 'updated_at')
+    list_filter = ('status',)
+    search_fields = ('name', 'agent_id')
+    readonly_fields = ('created_at', 'updated_at', 'last_seen_at', 'last_ip')
 
 
 @admin.register(AppElement)
@@ -65,7 +74,7 @@ class AppTestCaseAdmin(admin.ModelAdmin):
 
 @admin.register(AppTestExecution)
 class AppTestExecutionAdmin(admin.ModelAdmin):
-    list_display = ('test_case', 'device', 'status', 'progress', 'pass_rate', 'created_at')
-    list_filter = ('status',)
-    search_fields = ('test_case__name',)
+    list_display = ('test_case', 'device', 'execution_mode', 'agent', 'status', 'progress', 'pass_rate', 'created_at')
+    list_filter = ('status', 'execution_mode', 'agent')
+    search_fields = ('test_case__name', 'agent__name', 'agent__agent_id')
     readonly_fields = ('created_at', 'updated_at', 'started_at', 'finished_at', 'duration')

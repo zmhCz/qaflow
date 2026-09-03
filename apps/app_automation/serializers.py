@@ -8,6 +8,7 @@ from .models import (
     AppProject,
     AppTestConfig,
     AppDevice,
+    AppExecutionAgent,
     AppElement,
     AppSemanticDictionary,
     AppComponent,
@@ -97,6 +98,8 @@ class AppTestConfigSerializer(serializers.ModelSerializer):
 class AppDeviceSerializer(serializers.ModelSerializer):
     """APP设备序列化器"""
     locked_by_name = serializers.SerializerMethodField()
+    agent_name = serializers.CharField(source='agent.name', read_only=True, default='')
+    agent_status = serializers.CharField(source='agent.status', read_only=True, default='')
     
     class Meta:
         model = AppDevice
@@ -613,14 +616,44 @@ class AppTestExecutionSerializer(serializers.ModelSerializer):
     case_name = serializers.CharField(read_only=True)
     device_name = serializers.CharField(read_only=True)
     user_name = serializers.CharField(read_only=True)
+    agent_name = serializers.CharField(source='agent.name', read_only=True, default='')
     pass_rate = serializers.FloatField(read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     result_display = serializers.CharField(source='get_result_display', read_only=True, default=None)
+    execution_mode_display = serializers.CharField(source='get_execution_mode_display', read_only=True)
     
     class Meta:
         model = AppTestExecution
         fields = '__all__'
         read_only_fields = ('created_at', 'updated_at', 'started_at', 'finished_at', 'duration')
+
+
+class AppExecutionAgentSerializer(serializers.ModelSerializer):
+    """本地执行机 Agent 序列化器。"""
+    device_count = serializers.SerializerMethodField()
+    online_device_count = serializers.SerializerMethodField()
+    running_execution_count = serializers.SerializerMethodField()
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True, default='')
+
+    class Meta:
+        model = AppExecutionAgent
+        fields = '__all__'
+        read_only_fields = (
+            'created_at',
+            'updated_at',
+            'last_seen_at',
+            'last_ip',
+            'created_by',
+        )
+
+    def get_device_count(self, obj):
+        return obj.devices.count()
+
+    def get_online_device_count(self, obj):
+        return obj.devices.filter(status__in=['online', 'available', 'locked']).count()
+
+    def get_running_execution_count(self, obj):
+        return obj.executions.filter(status='running').count()
 
 
 class AppExplorationStepSerializer(serializers.ModelSerializer):

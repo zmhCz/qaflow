@@ -285,6 +285,7 @@ class AppTestCaseViewSet(viewsets.ModelViewSet):
         """执行测试用例"""
         test_case = self.get_object()
         device_id = request.data.get('device_id')
+        execution_mode = request.data.get('execution_mode') or 'server'
         package_name = request.data.get('package_name') or (
             test_case.app_package.package_name if test_case.app_package else ''
         ) or (
@@ -307,21 +308,38 @@ class AppTestCaseViewSet(viewsets.ModelViewSet):
                     'message': '设备已被其他用户锁定'
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            precheck = run_execution_precheck(device, package_name=package_name)
-            if not precheck.get('can_submit'):
+            if execution_mode not in ('server', 'agent'):
                 return Response({
                     'success': False,
-                    'message': build_precheck_error_message(precheck),
-                    'precheck': precheck,
+                    'message': '执行模式不正确'
                 }, status=status.HTTP_400_BAD_REQUEST)
+
+            if execution_mode == 'server':
+                precheck = run_execution_precheck(device, package_name=package_name)
+                if not precheck.get('can_submit'):
+                    return Response({
+                        'success': False,
+                        'message': build_precheck_error_message(precheck),
+                        'precheck': precheck,
+                    }, status=status.HTTP_400_BAD_REQUEST)
             
             # 创建执行记录
             execution = AppTestExecution.objects.create(
                 test_case=test_case,
                 device=device,
                 user=request.user,
-                status='pending'
+                status='pending',
+                execution_mode=execution_mode,
             )
+
+            if execution_mode == 'agent':
+                execution.task_id = f'agent-pending-{execution.id}'
+                execution.save(update_fields=['task_id'])
+                return Response({
+                    'success': True,
+                    'message': '测试已提交到本地 Agent 队列，等待执行机领取',
+                    'execution': AppTestExecutionSerializer(execution).data
+                })
             
             # 调用 Celery 任务异步执行
             from ..tasks import execute_app_test_task

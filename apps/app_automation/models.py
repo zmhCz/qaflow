@@ -115,6 +115,14 @@ class AppDevice(models.Model):
     device_specs = models.JSONField(default=dict, verbose_name='设备规格', help_text='RAM, CPU, 分辨率等信息')
     description = models.TextField(blank=True, default='', verbose_name='设备描述')
     location = models.CharField(max_length=200, blank=True, default='', verbose_name='设备位置')
+    agent = models.ForeignKey(
+        'AppExecutionAgent',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='devices',
+        verbose_name='所属执行机'
+    )
     
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
@@ -127,6 +135,7 @@ class AppDevice(models.Model):
         indexes = [
             models.Index(fields=['status']),
             models.Index(fields=['device_id']),
+            models.Index(fields=['agent', 'status']),
         ]
     
     def __str__(self):
@@ -152,6 +161,48 @@ class AppDevice(models.Model):
             return False
         elapsed = (timezone.now() - self.locked_at).total_seconds()
         return elapsed > self.max_allocation_time
+
+
+class AppExecutionAgent(models.Model):
+    """本地执行机 Agent，用于云端平台下发任务、本地电脑连接真机执行。"""
+
+    STATUS_CHOICES = [
+        ('online', '在线'),
+        ('offline', '离线'),
+        ('busy', '执行中'),
+        ('disabled', '已停用'),
+    ]
+
+    agent_id = models.CharField(max_length=120, unique=True, verbose_name='Agent标识')
+    name = models.CharField(max_length=120, verbose_name='Agent名称')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='offline', verbose_name='状态')
+    description = models.TextField(blank=True, default='', verbose_name='说明')
+    capabilities = models.JSONField(default=dict, blank=True, verbose_name='能力信息')
+    last_seen_at = models.DateTimeField(null=True, blank=True, verbose_name='最后心跳时间')
+    last_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name='最后访问IP')
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_app_execution_agents',
+        verbose_name='创建人'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        db_table = 'app_execution_agents'
+        verbose_name = 'APP执行机Agent'
+        verbose_name_plural = 'APP执行机Agent'
+        ordering = ['-last_seen_at', '-updated_at']
+        indexes = [
+            models.Index(fields=['agent_id']),
+            models.Index(fields=['status', 'last_seen_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.agent_id})'
 
 
 class AppElement(models.Model):
@@ -854,6 +905,10 @@ class AppTestExecution(models.Model):
         (ExecutionResult.FAILED, '失败'),
         (ExecutionResult.SKIPPED, '跳过'),
     ]
+    EXECUTION_MODE_CHOICES = [
+        ('server', '服务器执行'),
+        ('agent', '本地Agent执行'),
+    ]
     
     test_case = models.ForeignKey(
         AppTestCase, 
@@ -914,6 +969,24 @@ class AppTestExecution(models.Model):
     duration = models.FloatField(default=0, verbose_name='执行时长(秒)')
     report_path = models.CharField(max_length=500, blank=True, default='', verbose_name='Allure报告路径')
     error_message = models.TextField(blank=True, default='', verbose_name='错误信息')
+    execution_mode = models.CharField(
+        max_length=20,
+        choices=EXECUTION_MODE_CHOICES,
+        default='server',
+        verbose_name='执行模式'
+    )
+    agent = models.ForeignKey(
+        AppExecutionAgent,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='executions',
+        verbose_name='执行Agent'
+    )
+    agent_claimed_at = models.DateTimeField(null=True, blank=True, verbose_name='Agent领取时间')
+    agent_last_heartbeat_at = models.DateTimeField(null=True, blank=True, verbose_name='Agent最近回报时间')
+    agent_message = models.CharField(max_length=500, blank=True, default='', verbose_name='Agent执行消息')
+    agent_payload = models.JSONField(default=dict, blank=True, verbose_name='Agent回传数据')
     performance_metrics = models.JSONField(
         default=dict,
         blank=True,
@@ -936,6 +1009,8 @@ class AppTestExecution(models.Model):
         indexes = [
             models.Index(fields=['status']),
             models.Index(fields=['-created_at']),
+            models.Index(fields=['execution_mode', 'status']),
+            models.Index(fields=['agent', 'status']),
         ]
     
     def __str__(self):

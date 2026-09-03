@@ -1,8 +1,8 @@
 # 生产部署（Linux）
 
-适用路径：`/opt/testhub_platform`  
-后端域名/IP：`172.13.6.230`  
-前端部署：独立部署在 `/opt/testhub_platform/frontend/dist`
+适用路径：`/opt/qaflow`
+后端域名/IP：`your-domain.com` 或 `your-server-ip`
+前端部署：独立部署在 `/opt/qaflow/frontend/dist`
 
 ---
 
@@ -10,18 +10,18 @@
 
 ```bash
 sudo useradd -m -s /bin/bash testhub
-sudo mkdir -p /opt/testhub_platform
-sudo chown -R testhub:testhub /opt/testhub_platform
+sudo mkdir -p /opt/qaflow
+sudo chown -R testhub:testhub /opt/qaflow
 ```
 
 将代码放到：
 ```
-/opt/testhub_platform
+/opt/qaflow
 ```
 
 目录结构示例：
 ```
-/opt/testhub_platform/
+/opt/qaflow/
 ├── backend/
 ├── apps/
 ├── manage.py
@@ -35,9 +35,19 @@ sudo chown -R testhub:testhub /opt/testhub_platform
 
 ## 2) Python 依赖与虚拟环境
 
+Ubuntu 22.04 默认 Python 通常是 3.10，但 QAFlow 的 AI/浏览器自动化依赖要求 Python 3.11+，推荐使用 Python 3.12：
+
 ```bash
-cd /opt/testhub_platform
-python3 -m venv venv
+sudo apt update
+sudo apt install -y software-properties-common
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install -y python3.12 python3.12-venv python3.12-dev
+```
+
+```bash
+cd /opt/qaflow
+python3.12 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 pip install daphne channels channels-redis
@@ -47,20 +57,21 @@ pip install daphne channels channels-redis
 
 ## 3) 环境变量（.env）
 
-创建 `/opt/testhub_platform/.env`：
+创建 `/opt/qaflow/.env`：
 
 ```env
 DEBUG=False
-SECRET_KEY=your-secret-key
-ALLOWED_HOSTS=172.13.6.230
+SECRET_KEY=replace-with-a-random-secret
+ALLOWED_HOSTS=your-domain.com,your-server-ip
+CSRF_TRUSTED_ORIGINS=https://your-domain.com
 
-DB_NAME=testhub
-DB_USER=root
-DB_PASSWORD=your_db_password
+DB_NAME=qaflow
+DB_USER=qaflow
+DB_PASSWORD=replace-with-db-password
 DB_HOST=127.0.0.1
 DB_PORT=3306
 
-REDIS_URL=redis://:1234@127.0.0.1:6379/0
+REDIS_URL=redis://127.0.0.1:6379/0
 ```
 
 ---
@@ -68,8 +79,8 @@ REDIS_URL=redis://:1234@127.0.0.1:6379/0
 ## 4) 收集静态文件
 
 ```bash
-source /opt/testhub_platform/venv/bin/activate
-cd /opt/testhub_platform
+source /opt/qaflow/venv/bin/activate
+cd /opt/qaflow
 python manage.py collectstatic --noinput
 ```
 
@@ -87,11 +98,11 @@ After=network.target
 
 [Service]
 User=testhub
-WorkingDirectory=/opt/testhub_platform
+WorkingDirectory=/opt/qaflow
 Environment="DJANGO_SETTINGS_MODULE=backend.settings"
 Environment="PYTHONUNBUFFERED=1"
-EnvironmentFile=/opt/testhub_platform/.env
-ExecStart=/opt/testhub_platform/venv/bin/daphne -b 0.0.0.0 -p 8000 backend.asgi:application
+EnvironmentFile=/opt/qaflow/.env
+ExecStart=/opt/qaflow/venv/bin/daphne -b 0.0.0.0 -p 8000 backend.asgi:application
 Restart=always
 
 [Install]
@@ -108,11 +119,11 @@ After=network.target
 
 [Service]
 User=testhub
-WorkingDirectory=/opt/testhub_platform
+WorkingDirectory=/opt/qaflow
 Environment="DJANGO_SETTINGS_MODULE=backend.settings"
 Environment="PYTHONUNBUFFERED=1"
-EnvironmentFile=/opt/testhub_platform/.env
-ExecStart=/opt/testhub_platform/venv/bin/celery -A backend worker --loglevel=info --pool=solo --concurrency=1
+EnvironmentFile=/opt/qaflow/.env
+ExecStart=/opt/qaflow/venv/bin/celery -A backend worker --loglevel=info --pool=solo --concurrency=1
 Restart=always
 
 [Install]
@@ -144,15 +155,15 @@ journalctl -u testhub-celery -f
 ```nginx
 server {
     listen 80;
-    server_name 172.13.6.230;
+    server_name your-domain.com your-server-ip;
 
     # 静态与媒体
     location /static/ {
-        alias /opt/testhub_platform/static/;
+        alias /opt/qaflow/static/;
     }
 
     location /media/ {
-        alias /opt/testhub_platform/media/;
+        alias /opt/qaflow/media/;
     }
 
     # API
@@ -174,7 +185,7 @@ server {
 
     # 前端独立部署
     location / {
-        root /opt/testhub_platform/frontend/dist;
+        root /opt/qaflow/frontend/dist;
         try_files $uri /index.html;
     }
 }
@@ -191,7 +202,7 @@ sudo systemctl restart nginx
 ## 7) 前端构建（独立部署）
 
 ```bash
-cd /opt/testhub_platform/frontend
+cd /opt/qaflow/frontend
 npm install
 npm run build
 ```
@@ -200,28 +211,28 @@ npm run build
 
 ## 8) 验证
 
-- API：`http://172.13.6.230/api/`
-- WebSocket：`ws://172.13.6.230/ws/app-automation/executions/<id>/`
+- API：`http://your-domain.com/api/` 或 `http://your-server-ip/api/`
+- WebSocket：`ws://your-domain.com/ws/app-automation/executions/<id>/`
 
 ---
 
 ## 9) 一键部署脚本（可选）
 
-> 脚本会写入 `.env`、systemd 与 Nginx 配置，请先确认变量值（如 DB/Redis 密码）。
+> 脚本会写入 `.env`、systemd 与 Nginx 配置，请先确认变量值（如域名、DB 密码）。
 
-保存为 `/opt/testhub_platform/deploy_prod.sh`：
+保存为 `/opt/qaflow/deploy_prod.sh`：
 
 ```bash
 #!/usr/bin/env bash
 set -e
 
-APP_DIR="/opt/testhub_platform"
+APP_DIR="/opt/qaflow"
 VENV_DIR="$APP_DIR/venv"
 NGINX_CONF="/etc/nginx/conf.d/testhub.conf"
 
 echo "=== 1) 创建虚拟环境 ==="
 if [ ! -d "$VENV_DIR" ]; then
-  python3 -m venv "$VENV_DIR"
+  python3.12 -m venv "$VENV_DIR"
 fi
 
 source "$VENV_DIR/bin/activate"
@@ -233,16 +244,17 @@ pip install daphne channels channels-redis
 echo "=== 3) 写入 .env ==="
 cat > "$APP_DIR/.env" <<EOF
 DEBUG=False
-SECRET_KEY=your-secret-key
-ALLOWED_HOSTS=172.13.6.230
+SECRET_KEY=replace-with-a-random-secret
+ALLOWED_HOSTS=your-domain.com,your-server-ip
+CSRF_TRUSTED_ORIGINS=https://your-domain.com
 
-DB_NAME=testhub
-DB_USER=root
-DB_PASSWORD=your_db_password
+DB_NAME=qaflow
+DB_USER=qaflow
+DB_PASSWORD=replace-with-db-password
 DB_HOST=127.0.0.1
 DB_PORT=3306
 
-REDIS_URL=redis://:1234@127.0.0.1:6379/0
+REDIS_URL=redis://127.0.0.1:6379/0
 EOF
 
 echo "=== 4) 收集静态文件 ==="
@@ -293,14 +305,14 @@ echo "=== 6) Nginx 配置 ==="
 cat > "$NGINX_CONF" <<EOF
 server {
     listen 80;
-    server_name 172.13.6.230;
+    server_name your-domain.com your-server-ip;
 
     location /static/ {
-        alias /opt/testhub_platform/static/;
+        alias /opt/qaflow/static/;
     }
 
     location /media/ {
-        alias /opt/testhub_platform/media/;
+        alias /opt/qaflow/media/;
     }
 
     location /api/ {
@@ -319,7 +331,7 @@ server {
     }
 
     location / {
-        root /opt/testhub_platform/frontend/dist;
+        root /opt/qaflow/frontend/dist;
         try_files \$uri /index.html;
     }
 }
@@ -333,7 +345,7 @@ echo "=== ✅ 部署完成 ==="
 
 执行：
 ```bash
-sudo chmod +x /opt/testhub_platform/deploy_prod.sh
-sudo /opt/testhub_platform/deploy_prod.sh
+sudo chmod +x /opt/qaflow/deploy_prod.sh
+sudo /opt/qaflow/deploy_prod.sh
 ```
 

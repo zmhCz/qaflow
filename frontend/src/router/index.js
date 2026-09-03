@@ -517,6 +517,13 @@ const routes = [
           import("@/views/app-automation/devices/DeviceList.vue"),
       },
       {
+        path: "execution-agents",
+        name: "AppExecutionAgentList",
+        component: () =>
+          import("@/views/app-automation/agents/ExecutionAgentList.vue"),
+        meta: { title: "执行机 Agent" },
+      },
+      {
         path: "packages",
         name: "AppPackageList",
         component: () =>

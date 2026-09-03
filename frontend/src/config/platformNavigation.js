@@ -229,6 +229,11 @@ const NAVIGATION_MODULES = [
         label: "设备管理",
       },
       {
+        index: "/app-automation/execution-agents",
+        icon: "Monitor",
+        label: "执行机 Agent",
+      },
+      {
         index: "/app-automation/packages",
         icon: "Collection",
         label: "包名管理",
