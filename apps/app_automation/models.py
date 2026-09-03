@@ -172,12 +172,31 @@ class AppExecutionAgent(models.Model):
         ('busy', '执行中'),
         ('disabled', '已停用'),
     ]
+    HEALTH_STATUS_CHOICES = [
+        ('unknown', '未检查'),
+        ('ready', '可执行'),
+        ('warning', '部分可用'),
+        ('blocked', '不可执行'),
+    ]
 
     agent_id = models.CharField(max_length=120, unique=True, verbose_name='Agent标识')
     name = models.CharField(max_length=120, verbose_name='Agent名称')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='offline', verbose_name='状态')
+    health_status = models.CharField(
+        max_length=20,
+        choices=HEALTH_STATUS_CHOICES,
+        default='unknown',
+        verbose_name='环境状态'
+    )
+    health_summary = models.CharField(max_length=500, blank=True, default='', verbose_name='环境摘要')
+    health_checks = models.JSONField(default=list, blank=True, verbose_name='环境检查项')
+    health_checked_at = models.DateTimeField(null=True, blank=True, verbose_name='环境检查时间')
     description = models.TextField(blank=True, default='', verbose_name='说明')
     capabilities = models.JSONField(default=dict, blank=True, verbose_name='能力信息')
+    token_hash = models.CharField(max_length=128, blank=True, default='', verbose_name='Agent令牌Hash')
+    token_prefix = models.CharField(max_length=16, blank=True, default='', verbose_name='Agent令牌前缀')
+    token_created_at = models.DateTimeField(null=True, blank=True, verbose_name='Agent令牌创建时间')
+    token_last_used_at = models.DateTimeField(null=True, blank=True, verbose_name='Agent令牌最后使用时间')
     last_seen_at = models.DateTimeField(null=True, blank=True, verbose_name='最后心跳时间')
     last_ip = models.GenericIPAddressField(null=True, blank=True, verbose_name='最后访问IP')
     created_by = models.ForeignKey(
@@ -987,6 +1006,11 @@ class AppTestExecution(models.Model):
     agent_last_heartbeat_at = models.DateTimeField(null=True, blank=True, verbose_name='Agent最近回报时间')
     agent_message = models.CharField(max_length=500, blank=True, default='', verbose_name='Agent执行消息')
     agent_payload = models.JSONField(default=dict, blank=True, verbose_name='Agent回传数据')
+    execution_snapshot = models.JSONField(default=dict, blank=True, verbose_name='执行快照')
+    attempt_no = models.IntegerField(default=0, verbose_name='执行尝试次数')
+    lease_token = models.CharField(max_length=128, blank=True, default='', verbose_name='任务租约令牌')
+    lease_expires_at = models.DateTimeField(null=True, blank=True, verbose_name='任务租约到期时间')
+    last_event_seq = models.IntegerField(default=0, verbose_name='最近事件序号')
     performance_metrics = models.JSONField(
         default=dict,
         blank=True,
@@ -1011,6 +1035,8 @@ class AppTestExecution(models.Model):
             models.Index(fields=['-created_at']),
             models.Index(fields=['execution_mode', 'status']),
             models.Index(fields=['agent', 'status']),
+            models.Index(fields=['lease_token']),
+            models.Index(fields=['lease_expires_at']),
         ]
     
     def __str__(self):

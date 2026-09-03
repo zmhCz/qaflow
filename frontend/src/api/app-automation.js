@@ -197,6 +197,14 @@ export function sendAgentHeartbeat(data) {
   });
 }
 
+export function generateExecutionAgentToken(data) {
+  return request({
+    url: "/app-automation/execution-agents/generate-token/",
+    method: "post",
+    data,
+  });
+}
+
 /**
  * 连接远程设备
  */

@@ -637,7 +637,30 @@ class AppExecutionAgentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AppExecutionAgent
-        fields = '__all__'
+        fields = (
+            'id',
+            'agent_id',
+            'name',
+            'status',
+            'health_status',
+            'health_summary',
+            'health_checks',
+            'health_checked_at',
+            'description',
+            'capabilities',
+            'token_prefix',
+            'token_created_at',
+            'token_last_used_at',
+            'last_seen_at',
+            'last_ip',
+            'created_by',
+            'created_by_name',
+            'created_at',
+            'updated_at',
+            'device_count',
+            'online_device_count',
+            'running_execution_count',
+        )
         read_only_fields = (
             'created_at',
             'updated_at',

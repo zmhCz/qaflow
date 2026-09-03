@@ -26,6 +26,7 @@ from ..serializers import (
     AppTestExecutionSerializer,
 )
 from ..utils.execution_precheck import build_precheck_error_message, run_execution_precheck
+from ..utils.agent_job import build_execution_snapshot
 from ..utils.report_summary import build_suite_report_summary, _local_time
 from ..utils.task_dispatcher import dispatch_app_task
 
@@ -387,6 +388,21 @@ class AppTestSuiteViewSet(viewsets.ModelViewSet):
                         'message': build_precheck_error_message(precheck),
                         'precheck': precheck,
                     }, status=status.HTTP_400_BAD_REQUEST)
+            elif not device.agent_id:
+                return Response({
+                    'success': False,
+                    'message': '该设备未绑定本地执行机，请先启动 Agent 并同步设备'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            elif device.agent.status not in ('online', 'busy'):
+                return Response({
+                    'success': False,
+                    'message': '设备所属执行机不在线，请先启动本地 Agent'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            elif device.agent.health_status == 'blocked':
+                return Response({
+                    'success': False,
+                    'message': device.agent.health_summary or '执行机环境不可执行，请先处理环境体检失败项'
+                }, status=status.HTTP_400_BAD_REQUEST)
 
             # 为每个用例创建执行记录
             executions = []
@@ -398,6 +414,8 @@ class AppTestSuiteViewSet(viewsets.ModelViewSet):
                     user=request.user,
                     status='pending',
                     execution_mode=execution_mode,
+                    agent=device.agent if execution_mode == 'agent' else None,
+                    execution_snapshot=build_execution_snapshot(sc.test_case, device, package_name) if execution_mode == 'agent' else {},
                 )
                 executions.append(execution)
 
